@@ -56,8 +56,12 @@ def select_or_configure_endpoint():
         client = Client()
         # Coleta todos os endpoints e os armazena para exibição e seleção
         for i, ep in enumerate(client.get_endpoints()):
-            endpoints_data.append(ep)
-            print(f"  {i + 1} - Nome: {ep['name']} - ID: {ep['uuid']}")
+            status = client.get_endpoint_status(ep["uuid"])["status"]
+            simplified_ep = {"uuid": ep["uuid"], "name": ep["name"], "status": status}
+            endpoints_data.append(simplified_ep)
+            print(
+                f"  {i + 1} - Nome: {ep['name']} - ID: {ep['uuid']} - Status: {status}"
+            )
     except Exception as e:
         print(f"Não foi possível listar os endpoints: {e}")
         print("Certifique-se de que está autenticado e o serviço está disponível.")
@@ -105,6 +109,12 @@ def select_or_configure_endpoint():
         for num in selected_numbers:
             index = num - 1  # Ajusta para índice base 0
             if 0 <= index < len(endpoints_data):
+                if endpoints_data[index]["status"] != "online":
+                    print(
+                        f"O endpoint {endpoints_data[index]['name']} (ID: {endpoints_data[index]['uuid']}) ainda está inativo. Por favor, inicie-o antes de utiliza-lo."
+                    )
+                    all_valid = False
+                    break
                 selected_endpoint_ids.append(endpoints_data[index]["uuid"])
             else:
                 print(
