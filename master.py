@@ -1,6 +1,8 @@
 # master_slave_faas/master.py
 
 from typing import Callable, List, Union, Any, Optional
+from .cloud_manager import BaseCloudManager
+from .distribution import BaseDistributionStrategy
 import cloudpickle
 
 
@@ -10,7 +12,11 @@ class Master:
     utilizando o paradigma mestre-escravo.
     """
 
-    def __init__(self, cloud_manager: Any, distribution_strategy: Optional[Any] = None):
+    def __init__(
+        self,
+        cloud_manager: BaseCloudManager,
+        distribution_strategy: Optional[BaseDistributionStrategy] = None,
+    ):
         """
         Inicializa o Master.
 
