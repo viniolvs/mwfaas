@@ -39,9 +39,7 @@ class Master:
                 )
             self.distribution_strategy = distribution_strategy
 
-        self._user_function_serialized: Optional[bytes] = (
-            None  # Anotação para o atributo
-        )
+        self._user_function_serialized: Optional[bytes] = None
         self._task_metadata: List[dict] = []
 
     def _serialize_function(self, user_function: Callable[[Any], Any]):
@@ -187,9 +185,7 @@ class Master:
                     for (
                         remaining_task_id,
                         original_chunk_idx_remaining,
-                    ) in (
-                        processed_ids_indices.items()
-                    ):  # O que sobrou não teve resultado
+                    ) in processed_ids_indices.items():
                         collected_results_ordered[original_chunk_idx_remaining] = (
                             err_msg
                         )
@@ -254,13 +250,9 @@ class Master:
 
         # Assegura que a lista retornada não contenha mais 'None' se todos os caminhos foram cobertos.
         # Se algum None puder persistir, o tipo de retorno deveria ser List[Optional[Union[Any, Exception]]].
-        # Com a lógica atual, espera-se que todos os Nones sejam substituídos.
-        # Para satisfazer o linter sobre o tipo de retorno estrito:
         final_results: List[Union[Any, Exception]] = []
         for item in collected_results_ordered:
             if item is None:
-                # Este caso idealmente não deveria acontecer se todos os chunks resultam em um valor ou exceção.
-                # Se puder, uma exceção deveria ser levantada ou um valor de erro padrão inserido.
                 final_results.append(
                     RuntimeError(
                         "Resultado inesperado 'None' para um chunk processado."
@@ -270,7 +262,7 @@ class Master:
                 final_results.append(item)
         return final_results
 
-    def get_task_statuses(self) -> List[dict]:  # Anotação para o retorno
+    def get_task_statuses(self) -> List[dict]:
         """Retorna uma cópia dos metadados sobre todas as tarefas da última execução de `run`."""
         return [status.copy() for status in self._task_metadata]
 

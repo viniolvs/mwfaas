@@ -14,9 +14,7 @@ from concurrent.futures import (
 )
 
 from .cloud_manager import BaseCloudManager
-# from ..exceptions import TaskSubmissionError, ResultCollectionError, TaskTimeoutError # Exceções customizadas
 
-# Constante para o arquivo de configuração padrão
 DEFAULT_CONFIG_PATH = "master_slave_globus_config.json"
 
 
@@ -52,11 +50,8 @@ class GlobusComputeCloudManager(BaseCloudManager):
         self._next_endpoint_idx = 0  # Para round-robin na submissão de tarefas
 
         if auto_authenticate:
-            # Tenta uma operação leve para acionar o fluxo de login se necessário.
-            # A autenticação real é lazy e gerenciada pelo SDK.
             try:
                 self._client.version_check()
-                # print("Globus Compute SDK: Autenticação parece estar ativa.") # Log
             except Exception as e:
                 print(
                     f"Aviso: A verificação inicial de autenticação com Globus Compute falhou: {e}. "
@@ -86,22 +81,18 @@ class GlobusComputeCloudManager(BaseCloudManager):
 
     def _initialize_executors(self, endpoint_ids_to_init: List[str]):
         """Inicializa os executores para os IDs de endpoint fornecidos."""
-        # Limpa executores e endpoints ativos existentes
-        self.shutdown_executors()  # Garante que executores antigos sejam desligados
+        self.shutdown_executors()
 
         new_active_ids = []
         new_executors = {}
 
         for ep_id in endpoint_ids_to_init:
             try:
-                # Verificar o status do endpoint antes de criar o executor pode ser útil,
-                # mas o Executor também pode falhar se o endpoint não estiver acessível.
                 # status_info = self._client.get_endpoint_status(ep_id)
                 # if status_info.get('status') != 'online':
                 #     print(f"Aviso: Endpoint Globus Compute {ep_id} não está 'online' (status: {status_info.get('status')}). Não será utilizado.")
                 #     continue
 
-                # Passar o self._client garante que usem a mesma sessão autenticada
                 new_executors[ep_id] = Executor(endpoint_id=ep_id, client=self._client)
                 new_active_ids.append(ep_id)
                 # print(f"Executor Globus Compute inicializado para endpoint: {ep_id}") # Log
@@ -160,15 +151,13 @@ class GlobusComputeCloudManager(BaseCloudManager):
         A função é desserializada antes da submissão, pois GlobusComputeExecutor espera um callable.
         """
         if not self._executors or not self.active_endpoint_ids:
-            # from ..exceptions import TaskSubmissionError
             raise RuntimeError(
                 "Nenhum executor Globus Compute está disponível/configurado para submissão de tarefas."
-            )  # TaskSubmissionError
+            )
 
         try:
             user_function = cloudpickle.loads(serialized_function_bytes)
         except Exception as e:
-            # from ..exceptions import FunctionSerializationError (ou um erro de desserialização)
             raise ValueError(
                 f"Falha ao desserializar a função do usuário para o Globus Compute: {e}"
             ) from e
@@ -183,19 +172,17 @@ class GlobusComputeCloudManager(BaseCloudManager):
         internal_task_id = str(uuid.uuid4())  # ID interno para rastrear o Future
 
         try:
-            # GlobusComputeExecutor.submit(func, *args, **kwargs)
             future: ComputeFuture = executor.submit(user_function, data_chunk)
             self._active_tasks[internal_task_id] = future
             # print(f"Tarefa {internal_task_id} (GC UUID: {future.task_uuid}) submetida ao endpoint {selected_endpoint_id}") # Log
             return internal_task_id
         except Exception as e:
-            # from ..exceptions import TaskSubmissionError
             print(
                 f"ERRO ao submeter tarefa ao endpoint Globus Compute {selected_endpoint_id}: {e}"
             )  # Log
             raise RuntimeError(
                 f"Falha ao submeter tarefa ao endpoint Globus Compute {selected_endpoint_id}: {e}"
-            ) from e  # TaskSubmissionError
+            ) from e
 
     def get_all_results_for_ids(
         self, task_ids: List[str], timeout_per_task: Optional[float] = None
@@ -209,7 +196,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
             future = self._active_tasks.get(internal_task_id)
 
             if future is None:
-                # from ..exceptions import ResultCollectionError
                 outcomes.append(
                     KeyError(
                         f"ID de tarefa interno desconhecido: {internal_task_id} para Globus Compute."
@@ -218,22 +204,19 @@ class GlobusComputeCloudManager(BaseCloudManager):
                 continue
 
             try:
-                # ComputeFuture.result() levanta a exceção da tarefa se ela falhou.
                 result = future.result(timeout=timeout_per_task)
                 outcomes.append(result)
             except FuturesTimeoutError:  # concurrent.futures.TimeoutError
-                # from ..exceptions import TaskTimeoutError
                 gc_uuid = future.task_id if hasattr(future, "task_uuid") else "N/A"
                 outcomes.append(
                     FuturesTimeoutError(
                         f"Tarefa Globus Compute (ID interno: {internal_task_id}, GC ID: {gc_uuid}) "
                         f"excedeu o tempo limite de {timeout_per_task}s."
-                    )  # TaskTimeoutError
+                    )
                 )
             except Exception as e:
-                # Esta 'e' é a exceção levantada pela execução da função do usuário no endpoint.
                 outcomes.append(e)
-            # Opcional: remover de self._active_tasks após obter o resultado para economizar memória
+            # remove de self._active_tasks após obter o resultado para economizar memória
             # del self._active_tasks[internal_task_id]
         return outcomes
 
@@ -251,17 +234,17 @@ class GlobusComputeCloudManager(BaseCloudManager):
                     f"Erro ao desligar o executor para o endpoint {endpoint_id}: {e}"
                 )  # Log
         self._executors.clear()
-        self._active_tasks.clear()  # Tarefas ativas tornam-se inválidas se os executores são desligados
+        self._active_tasks.clear()
         # print("Executores Globus Compute desligados.") # Log
 
     def shutdown(self):
         """Método de limpeza para o BaseCloudManager."""
         self.shutdown_executors()
 
-    # --- Métodos de Configuração e Autenticação (Adaptados do Script) ---
+    # --- Métodos de Configuração e Autenticação  ---
 
     @staticmethod
-    def do_logout():  # Renomeado para evitar conflito com possíveis frameworks
+    def do_logout():
         """Realiza a desautenticação (logout) com o Globus Compute."""
         print("\n--- Desautenticação Globus ---")
         try:
@@ -272,7 +255,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
             print(f"Erro durante a desautenticação: {e}")
 
     @staticmethod
-    def do_login_interactive() -> bool:  # Renomeado
+    def do_login_interactive() -> bool:
         """Realiza a autenticação interativa com o Globus Compute."""
         print("\n--- Autenticação Globus ---")
         print(
@@ -291,15 +274,12 @@ class GlobusComputeCloudManager(BaseCloudManager):
             return False
 
     @staticmethod
-    def select_endpoints_interactive() -> List[str]:  # Renomeado
+    def select_endpoints_interactive() -> List[str]:
         """
         Permite ao usuário selecionar interativamente um ou mais endpoints Globus Compute existentes.
         Retorna uma lista de IDs de endpoints selecionados que estão 'online'.
         """
         print("\n--- Seleção Interativa de Endpoints Globus Compute ---")
-
-        # Garante autenticação antes de listar endpoints
-        # GlobusComputeCloudManager.do_login_interactive() # Pode ser chamado antes externamente se necessário
 
         client = GlobusComputeClient()
         print("Listando seus endpoints Globus Compute existentes...")
@@ -334,7 +314,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
 
         if not available_endpoints_details:
             print("\nNenhum endpoint do Globus Compute encontrado ou acessível.")
-            # (Instruções para configurar um novo endpoint, como no script original)
             print(
                 "Para configurar um novo endpoint, siga as instruções da documentação do Globus Compute:"
             )
@@ -377,7 +356,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
                 )
                 return selected_endpoint_ids
 
-            # Usa re.findall para encontrar todos os grupos de dígitos
             selected_numbers_str = re.findall(r"\d+", user_input)
             if not selected_numbers_str:
                 print("Nenhum número detectado na entrada. Tente novamente.")
@@ -394,7 +372,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
             current_selection_round_ids = []
             valid_selection_this_round = True
             for num in selected_numbers:
-                index = num - 1  # Ajusta para índice base 0
+                index = num - 1
                 if 0 <= index < len(available_endpoints_details):
                     ep_data = available_endpoints_details[index]
                     if ep_data["status"] != "online":
@@ -402,17 +380,14 @@ class GlobusComputeCloudManager(BaseCloudManager):
                             f"AVISO: Endpoint '{ep_data['name']}' (ID: {ep_data['uuid']}) não está 'online' (status: {ep_data['status']}). "
                             "Ele não será adicionado. Por favor, inicie-o se desejar usá-lo."
                         )
-                        # Não torna a seleção inteira inválida, apenas pula este endpoint
                     else:
                         current_selection_round_ids.append(ep_data["uuid"])
                 else:
                     print(
                         f"Número de endpoint inválido: {num}. Por favor, verifique e tente novamente."
                     )
-                    valid_selection_this_round = (
-                        False  # Invalida esta rodada de números
-                    )
-                    current_selection_round_ids = []  # Limpa o que foi selecionado nesta rodada
+                    valid_selection_this_round = False
+                    current_selection_round_ids = []
                     break
 
             if valid_selection_this_round and current_selection_round_ids:
@@ -438,10 +413,8 @@ class GlobusComputeCloudManager(BaseCloudManager):
                         return selected_endpoint_ids
                     else:
                         print("Nenhum endpoint válido foi selecionado.")
-                        # Loop continua para nova tentativa ou 'q'
-            elif (
-                not current_selection_round_ids and valid_selection_this_round
-            ):  # Nenhum número válido resultou em um endpoint
+
+            elif not current_selection_round_ids and valid_selection_this_round:
                 print("Nenhum endpoint válido adicionado nesta rodada.")
 
     @staticmethod
@@ -456,8 +429,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
             print(f"\nConfiguração de endpoints salva em {config_path}")
         except IOError as e:
             print(f"Erro ao salvar o arquivo de configuração {config_path}: {e}")
-            # Em uma classe de biblioteca, é melhor levantar uma exceção do que sair
-            raise  # Ou raise CustomConfigSaveError(f"...") from e
+            raise e
 
     def configure_endpoints_interactive_and_save(
         self, save_to_path: Optional[str] = None, auto_activate_session: bool = True
@@ -486,9 +458,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
         selected_ids = GlobusComputeCloudManager.select_endpoints_interactive()
 
         if selected_ids:
-            self._initialize_executors(
-                selected_ids
-            )  # Reconfigura os executores com os novos IDs
+            self._initialize_executors(selected_ids)
 
             if not self.active_endpoint_ids:
                 print(
@@ -511,9 +481,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
                 "Nenhum endpoint foi selecionado ou a seleção foi cancelada. "
                 "A configuração do gerenciador permanece inalterada ou vazia."
             )
-            # Mantém os endpoints atuais se a nova seleção falhar em obter algum ID
-            if (
-                not self.active_endpoint_ids
-            ):  # Se não havia nenhum antes e nenhum foi selecionado
+            if not self.active_endpoint_ids:
                 return False
-            return True  # Retorna True se já tinha endpoints ativos e o usuário cancelou a nova seleção
+            return True
