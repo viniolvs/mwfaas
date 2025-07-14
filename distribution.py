@@ -1,4 +1,4 @@
-# master_slave_faas/distribution.py
+# msfaas/distribution.py
 
 import abc
 import math

@@ -1,4 +1,4 @@
-# master_slave_faas/globus_compute_manager.py
+# msfaas/globus_compute_manager.py
 
 import json
 import re
@@ -172,9 +172,14 @@ class GlobusComputeCloudManager(BaseCloudManager):
         internal_task_id = str(uuid.uuid4())  # ID interno para rastrear o Future
 
         try:
-            future: ComputeFuture = executor.submit(user_function, data_chunk)
+            print(
+                f"Submetendo tarefa {internal_task_id} ao endpoint Globus Compute {selected_endpoint_id}..."
+            )
+            future = executor.submit(user_function, data_chunk)
             self._active_tasks[internal_task_id] = future
-            # print(f"Tarefa {internal_task_id} (GC UUID: {future.task_uuid}) submetida ao endpoint {selected_endpoint_id}") # Log
+            print(
+                f"Tarefa {internal_task_id} (GC UUID: {future.task_id}) submetida ao endpoint {selected_endpoint_id}"
+            )  # Log
             return internal_task_id
         except Exception as e:
             print(
@@ -193,7 +198,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
         """
         outcomes: List[Any] = []
         for internal_task_id in task_ids:
-            future = self._active_tasks.get(internal_task_id)
+            future: ComputeFuture = self._active_tasks.get(internal_task_id)
 
             if future is None:
                 outcomes.append(
@@ -203,8 +208,15 @@ class GlobusComputeCloudManager(BaseCloudManager):
                 )
                 continue
 
+            print(f"Estado da tarefa {internal_task_id}: {future._state}")
             try:
+                print(
+                    f"Recuperando o resultado da tarefa {internal_task_id} (GC UUID: {future.task_id})..."
+                )
                 result = future.result(timeout=timeout_per_task)
+                print(
+                    f"Resultado da tarefa {internal_task_id} (GC UUID: {future.task_id}): {result}"
+                )
                 outcomes.append(result)
             except FuturesTimeoutError:  # concurrent.futures.TimeoutError
                 gc_uuid = future.task_id if hasattr(future, "task_uuid") else "N/A"

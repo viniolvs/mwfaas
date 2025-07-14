@@ -1,7 +1,4 @@
-# master_slave_faas/slave.py (versão com classe)
-
-import traceback
-# from .exceptions import TaskExecutionError # Se definida
+# msfaas/slave.py
 
 
 class Slave:
@@ -20,7 +17,6 @@ class Slave:
                                      configuração no momento da instanciação.
         """
         self.config = config
-        # print(f"[Slave:__init__] Slave instanciado com config: {self.config}")
 
     def execute_task(self, user_function, data_chunk):
         """
@@ -47,20 +43,3 @@ class Slave:
             # Se TaskExecutionError fosse usado:
             # raise TaskExecutionError(f"Erro no escravo ao executar tarefa: {str(e)}") from e
             raise
-
-
-# Como um handler FaaS (que estaria, por exemplo, em cloud_manager.py) poderia usar esta classe:
-#
-# import cloudpickle
-# from .slave import Slave # Assumindo que o handler está em um módulo que pode importar assim
-# # Ou: from master_slave_faas.slave import Slave
-#
-# def actual_faas_handler(event, context):
-#     # Etapas (simplificadas):
-#     # 1. Obter user_function (desserializada) e data_chunk do 'event'
-#     #    (a desserialização da função e dos dados ocorreria aqui)
-#     # user_function = cloudpickle.loads(bytes.fromhex(event['serialized_function_hex']))
-#     # data_chunk = event['data_chunk']
-#
-#     # slave_instance = Slave() # Ou com alguma config se necessário
-#     # return slave_instance.execute_task(user_function, data_chunk)

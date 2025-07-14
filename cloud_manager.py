@@ -1,4 +1,4 @@
-# master_slave_faas/cloud_manager.py
+# msfaas/cloud_manager.py
 
 import abc
 from typing import Any

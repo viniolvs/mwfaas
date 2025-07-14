@@ -1,4 +1,4 @@
-# master_slave_faas/master.py
+# msfaas/master.py
 
 from typing import Callable, List, Union, Any, Optional
 from .cloud_manager import BaseCloudManager
@@ -135,6 +135,7 @@ class Master:
         task_ids_to_fetch = [
             task["id"] for task in tasks_for_result_collection if task["id"] is not None
         ]
+        print(f"IDs das tarefas a serem coletadas: {task_ids_to_fetch}")
 
         if task_ids_to_fetch:
             try:

@@ -28,7 +28,7 @@ node_attr = {
 with Diagram(
     "Arquitetura Master-Slave FaaS com Globus Compute",
     show=False,  # Não abre a imagem automaticamente após gerar
-    filename="arquitetura_master_slave_faas",
+    filename="arquitetura_msfaas",
     direction="TB",  # TB = Top to Bottom
     graph_attr=graph_attr,
     node_attr=node_attr,
@@ -41,7 +41,7 @@ with Diagram(
         data_input = Custom("Dados de Entrada", "./data_icon.png")
 
     # Cluster principal da sua biblioteca
-    with Cluster("Biblioteca master_slave_faas", graph_attr=cluster_attr):
+    with Cluster("Biblioteca msfaas", graph_attr=cluster_attr):
         master = Python("Master")
         distribution_strategy = Python("Distribution Strategy")
 
