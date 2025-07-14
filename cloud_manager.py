@@ -7,10 +7,6 @@ import cloudpickle
 from multiprocessing import Pool, TimeoutError as MPTimeoutError
 import os
 
-# Importa a classe Slave para ser usada pelo _execute_task_in_worker_process
-# Isso assume que slave.py está na mesma estrutura de pacote e é acessível.
-from .slave import Slave
-
 
 # Esta função auxiliar será executada pelos processos de trabalho no Pool.
 # Deve ser definida no nível superior de um módulo para ser serializável (picklable) pelo multiprocessing.
@@ -31,16 +27,8 @@ def _execute_task_in_worker_process(
     try:
         # Desserializa a função do usuário
         user_function = cloudpickle.loads(serialized_user_function_bytes)
-
-        # Cria uma instância do Slave e executa a tarefa
-        # Cada tarefa FaaS (simulada) obtém sua própria instância de Slave.
-        slave_instance = Slave()
-        return slave_instance.execute_task(user_function, data_chunk)
+        return user_function(data_chunk)
     except Exception as e:
-        # Retorna a própria instância da exceção.
-        # O método .get() do AsyncResult no processo principal irá re-levantar esta exceção
-        # se não for tratada aqui. Ao retorná-la, permitimos que o Master
-        # diferencie entre um resultado bem-sucedido e um erro usando isinstance().
         return e
 
 
@@ -165,13 +153,8 @@ class LocalCloudManager(BaseCloudManager):
             )
             self._active_tasks[task_id] = async_result
             return task_id
-        except Exception as e:  # Ex: se o pool estiver fechando
-            # from .exceptions import TaskSubmissionError # Usar exceções customizadas
-            # raise TaskSubmissionError(f"Falha ao submeter tarefa {task_id} localmente: {e}") from e
-            # Por enquanto, levanta uma exceção genérica ou específica do runtime
-            print(
-                f"ERRO ao submeter tarefa {task_id} para o pool local: {e}"
-            )  # Substituir por logging
+        except Exception as e:
+            print(f"ERRO ao submeter tarefa {task_id} para o pool local: {e}")
             raise RuntimeError(
                 f"Falha ao submeter tarefa {task_id} localmente: {e}"
             ) from e
@@ -184,17 +167,11 @@ class LocalCloudManager(BaseCloudManager):
         Bloqueia até que todas as tarefas sejam concluídas ou um timeout ocorra.
         Os resultados são retornados na mesma ordem dos task_ids.
         """
-        if (
-            self._pool is None and self._active_tasks
-        ):  # Pool desligado mas ainda há tarefas ativas (improvável)
+        if self._pool is None and self._active_tasks:
             raise RuntimeError(
                 "LocalCloudManager foi desligado, mas ainda existem tarefas ativas pendentes."
             )
-        if (
-            not self._active_tasks and task_ids
-        ):  # Sem tarefas ativas mas IDs foram solicitados
-            # Isso pode acontecer se submit_task falhou para todos os IDs
-            # ou se os IDs são inválidos.
+        if not self._active_tasks and task_ids:
             return [
                 KeyError(
                     f"Nenhuma tarefa ativa encontrada, ou ID de tarefa desconhecido: {tid}"
@@ -207,52 +184,36 @@ class LocalCloudManager(BaseCloudManager):
             async_result = self._active_tasks.get(task_id)
 
             if async_result is None:
-                # from .exceptions import ResultCollectionError # Usar exceções customizadas
-                # outcomes.append(ResultCollectionError(f"ID de tarefa desconhecido: {task_id}"))
                 outcomes.append(
                     KeyError(f"ID de tarefa desconhecido ou já processado: {task_id}")
                 )
                 continue
 
             try:
-                # .get() irá re-levantar exceções que ocorreram no processo de trabalho
-                # (a menos que o worker as capture e retorne explicitamente, como o nosso faz).
                 outcome = async_result.get(timeout=timeout_per_task)
                 outcomes.append(outcome)
-            except MPTimeoutError:  # from multiprocessing.TimeoutError
-                # from .exceptions import TaskTimeoutError # Usar exceções customizadas
-                # outcomes.append(TaskTimeoutError(f"Tarefa {task_id} excedeu o tempo limite de {timeout_per_task}s"))
+            except MPTimeoutError:
                 outcomes.append(
                     MPTimeoutError(
                         f"Tarefa {task_id} excedeu o tempo limite ({timeout_per_task}s)."
                     )
                 )
             except Exception as e:
-                # Erro inesperado ao tentar obter o resultado (não um erro da tarefa em si).
-                print(
-                    f"ERRO inesperado ao obter resultado para tarefa {task_id}: {e}"
-                )  # Substituir por logging
+                print(f"ERRO inesperado ao obter resultado para tarefa {task_id}: {e}")
                 outcomes.append(e)
-
-            # Opcional: remover a tarefa de _active_tasks após obter o resultado para liberar memória,
-            # mas isso impede a consulta de status posterior para o mesmo task_id.
-            # Se a política for "obter resultado uma vez", então del self._active_tasks[task_id] é ok.
-            # Por enquanto, mantemos para o caso de futuras consultas de status.
 
         return outcomes
 
     def shutdown(self):
         """Fecha o pool de multiprocessing e aguarda a conclusão dos workers."""
         if self._pool is not None:
-            # print("LocalCloudManager: Desligando o pool de processos...") # Substituir por logging
+            print("LocalCloudManager: Desligando o pool de processos...")
             try:
                 self._pool.close()  # Impede que novas tarefas sejam submetidas.
                 self._pool.join()  # Aguarda a saída dos processos de trabalho.
             except Exception as e:
-                print(
-                    f"LocalCloudManager: Erro ao desligar o pool: {e}"
-                )  # Substituir por logging
+                print(f"LocalCloudManager: Erro ao desligar o pool: {e}")
             finally:
                 self._pool = None
-                self._active_tasks = {}  # Limpa as tarefas ativas
-                # print("LocalCloudManager: Pool de processos desligado.")
+                self._active_tasks = {}
+                print("LocalCloudManager: Pool de processos desligado.")

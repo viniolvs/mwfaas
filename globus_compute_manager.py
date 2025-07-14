@@ -8,7 +8,6 @@ from typing import Any, Optional, List, Dict
 
 from globus_compute_sdk import Client as GlobusComputeClient
 from globus_compute_sdk import Executor
-from globus_compute_sdk.sdk.executor import ComputeFuture  # Para type hint
 from concurrent.futures import (
     TimeoutError as FuturesTimeoutError,
 )
@@ -45,7 +44,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
         self.active_endpoint_ids: List[str] = []
         self._executors: Dict[str, Executor] = {}  # endpoint_id -> Executor
         self._active_tasks: Dict[
-            str, ComputeFuture
+            str, Any  # ComputeFuture
         ] = {}  # internal_task_id -> GlobusComputeFuture
         self._next_endpoint_idx = 0  # Para round-robin na submissão de tarefas
 
@@ -61,11 +60,10 @@ class GlobusComputeCloudManager(BaseCloudManager):
         loaded_ids = []
         if endpoint_ids:
             loaded_ids = endpoint_ids
-            # print(f"Usando endpoints fornecidos diretamente: {loaded_ids}") # Log
         else:
             loaded_ids = self._load_config_from_file(self._config_file_path)
             if loaded_ids:
-                # print(f"Endpoints carregados de {self._config_file_path}: {loaded_ids}") # Log
+                print(f"Endpoints carregados de {self._config_file_path}: {loaded_ids}")
                 pass
             else:
                 print(
@@ -88,14 +86,16 @@ class GlobusComputeCloudManager(BaseCloudManager):
 
         for ep_id in endpoint_ids_to_init:
             try:
-                # status_info = self._client.get_endpoint_status(ep_id)
-                # if status_info.get('status') != 'online':
-                #     print(f"Aviso: Endpoint Globus Compute {ep_id} não está 'online' (status: {status_info.get('status')}). Não será utilizado.")
-                #     continue
+                status_info = self._client.get_endpoint_status(ep_id)
+                if status_info.get("status") != "online":
+                    print(
+                        f"Aviso: Endpoint Globus Compute {ep_id} não está 'online' (status: {status_info.get('status')}). Não será utilizado."
+                    )
+                    continue
 
                 new_executors[ep_id] = Executor(endpoint_id=ep_id, client=self._client)
                 new_active_ids.append(ep_id)
-                # print(f"Executor Globus Compute inicializado para endpoint: {ep_id}") # Log
+                print(f"Executor Globus Compute inicializado para endpoint: {ep_id}")
             except Exception as e:
                 print(
                     f"Aviso: Falha ao criar GlobusComputeExecutor para o endpoint {ep_id}: {e}. Este endpoint não será utilizado."
@@ -123,7 +123,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
                     )
                     return []
         except FileNotFoundError:
-            # print(f"Info: Arquivo de configuração {config_path} não encontrado.") # Log
+            print(f"Info: Arquivo de configuração {config_path} não encontrado.")
             return []
         except json.JSONDecodeError:
             print(f"Erro: Não foi possível decodificar JSON de {config_path}.")
@@ -169,17 +169,11 @@ class GlobusComputeCloudManager(BaseCloudManager):
         self._next_endpoint_idx += 1
 
         executor = self._executors[selected_endpoint_id]
-        internal_task_id = str(uuid.uuid4())  # ID interno para rastrear o Future
+        internal_task_id = str(uuid.uuid4())
 
         try:
-            print(
-                f"Submetendo tarefa {internal_task_id} ao endpoint Globus Compute {selected_endpoint_id}..."
-            )
             future = executor.submit(user_function, data_chunk)
             self._active_tasks[internal_task_id] = future
-            print(
-                f"Tarefa {internal_task_id} (GC UUID: {future.task_id}) submetida ao endpoint {selected_endpoint_id}"
-            )  # Log
             return internal_task_id
         except Exception as e:
             print(
@@ -198,7 +192,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
         """
         outcomes: List[Any] = []
         for internal_task_id in task_ids:
-            future: ComputeFuture = self._active_tasks.get(internal_task_id)
+            future = self._active_tasks.get(internal_task_id)
 
             if future is None:
                 outcomes.append(
@@ -298,7 +292,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
 
         available_endpoints_details = []
         try:
-            raw_endpoints = client.get_endpoints()
+            raw_endpoints = client.get_endpoints(client)
             if not raw_endpoints:
                 print("Nenhum endpoint encontrado na sua conta Globus Compute.")
             for i, ep_info in enumerate(raw_endpoints):
@@ -311,11 +305,11 @@ class GlobusComputeCloudManager(BaseCloudManager):
                     }
                     available_endpoints_details.append(details)
                     print(
-                        f"  {i + 1} - Nome: {details['name']} (ID: {details['uuid']}) - Status: {details['status']}"
+                        f"{i + 1} - Nome: {details['name']} (ID: {details['uuid']}) - Status: {details['status']}"
                     )
                 except Exception as e_status:
                     print(
-                        f"  Erro ao obter status para endpoint {ep_info.get('name', ep_info.get('uuid', 'Desconhecido'))}: {e_status}"
+                        f"Erro ao obter status para endpoint {ep_info.get('name', ep_info.get('uuid', 'Desconhecido'))}: {e_status}"
                     )
         except Exception as e_list:
             print(f"Não foi possível listar os endpoints: {e_list}")
@@ -361,7 +355,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
                     )
                     continue
                 selected_endpoint_ids.extend(ids_to_add)
-                # Remover duplicatas se o usuário digitar 'todos' múltiplas vezes ou misturar com números
+                # set remove duplicatas
                 selected_endpoint_ids = sorted(list(set(selected_endpoint_ids)))
                 print(
                     f"Endpoints 'online' selecionados: {', '.join(selected_endpoint_ids)}"
