@@ -14,7 +14,7 @@ from concurrent.futures import (
 
 from .cloud_manager import BaseCloudManager
 
-DEFAULT_CONFIG_PATH = "master_slave_globus_config.json"
+DEFAULT_CONFIG_PATH = "globus_config.json"
 
 
 class GlobusComputeCloudManager(BaseCloudManager):
@@ -25,7 +25,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
 
     def __init__(
         self,
-        endpoint_ids: Optional[List[str]] = None,
+        endpoints_config: Optional[List[Dict[str, Any]]] = None,
         config_file_path: str = DEFAULT_CONFIG_PATH,
         auto_authenticate: bool = True,
     ):
@@ -33,57 +33,55 @@ class GlobusComputeCloudManager(BaseCloudManager):
         Inicializa o GlobusComputeCloudManager.
 
         Args:
-            endpoint_ids: Uma lista opcional de IDs de endpoint do Globus Compute a serem usados.
-                          Se não fornecido, tentará carregar de `config_file_path`.
-            config_file_path: Caminho para o arquivo de configuração para carregar/salvar IDs de endpoint.
+            endpoints_config: Uma lista opcional de dicionários, cada um descrevendo um endpoint.
+            config_file_path: Caminho para o arquivo de configuração.
             auto_authenticate: Se True, tenta garantir a autenticação na inicialização.
         """
         self._config_file_path = config_file_path
         self._client = GlobusComputeClient()
 
+        self.endpoints_details: List[Dict[str, Any]] = []
         self.active_endpoint_ids: List[str] = []
-        self._executors: Dict[str, Executor] = {}  # endpoint_id -> Executor
-        self._active_tasks: Dict[
-            str, Any  # ComputeFuture
-        ] = {}  # internal_task_id -> GlobusComputeFuture
-        self._next_endpoint_idx = 0  # Para round-robin na submissão de tarefas
+        self._executors: Dict[str, Executor] = {}
+        self._active_tasks: Dict[str, Any] = {}
+        self._next_endpoint_idx = 0
 
         if auto_authenticate:
             try:
                 self._client.version_check()
-            except Exception as e:
+            except Exception:
                 print(
-                    f"Aviso: A verificação inicial de autenticação com Globus Compute falhou: {e}. "
-                    "A autenticação será tentada novamente na primeira operação."
+                    "Aviso: Autenticação com Globus Compute será solicitada na primeira operação."
                 )
 
-        loaded_ids = []
-        if endpoint_ids:
-            loaded_ids = endpoint_ids
+        loaded_config = []
+        if endpoints_config is not None:
+            loaded_config = endpoints_config
         else:
-            loaded_ids = self._load_config_from_file(self._config_file_path)
-            if loaded_ids:
-                print(f"Endpoints carregados de {self._config_file_path}: {loaded_ids}")
-                pass
-            else:
+            loaded_config = self._load_config_from_file(self._config_file_path)
+            if not loaded_config:
                 print(
-                    f"Nenhum endpoint ID fornecido e nenhum encontrado em '{self._config_file_path}'."
+                    f"Nenhuma configuração de endpoint fornecida ou encontrada em '{self._config_file_path}'."
                 )
                 print(
-                    "Considere executar o método 'configure_endpoints_interactive()' "
-                    "ou fornecer 'endpoint_ids' na inicialização."
+                    "Execute o método 'configure_endpoints_interactive_and_save()' para começar."
                 )
 
-        if loaded_ids:
-            self._initialize_executors(loaded_ids)
+        if loaded_config:
+            self._initialize_from_config(loaded_config)
+
+    def _initialize_from_config(self, endpoints_config: List[Dict[str, Any]]):
+        """Inicializa os atributos e executores a partir de uma configuração carregada."""
+        self.shutdown_executors()  # Limpa executores antigos
+        self.endpoints_details = endpoints_config
+        endpoint_ids_to_init = [
+            ep.get("id") for ep in self.endpoints_details if ep.get("id")
+        ]
+        self._initialize_executors(endpoint_ids_to_init)
 
     def _initialize_executors(self, endpoint_ids_to_init: List[str]):
-        """Inicializa os executores para os IDs de endpoint fornecidos."""
-        self.shutdown_executors()
-
-        new_active_ids = []
-        new_executors = {}
-
+        self.active_endpoint_ids = []
+        self._executors = {}
         for ep_id in endpoint_ids_to_init:
             try:
                 status_info = self._client.get_endpoint_status(ep_id)
@@ -92,38 +90,34 @@ class GlobusComputeCloudManager(BaseCloudManager):
                         f"Aviso: Endpoint Globus Compute {ep_id} não está 'online' (status: {status_info.get('status')}). Não será utilizado."
                     )
                     continue
-
-                new_executors[ep_id] = Executor(endpoint_id=ep_id, client=self._client)
-                new_active_ids.append(ep_id)
-                print(f"Executor Globus Compute inicializado para endpoint: {ep_id}")
+                self._executors[ep_id] = Executor(
+                    endpoint_id=ep_id, client=self._client
+                )
+                self.active_endpoint_ids.append(ep_id)
             except Exception as e:
                 print(
-                    f"Aviso: Falha ao criar GlobusComputeExecutor para o endpoint {ep_id}: {e}. Este endpoint não será utilizado."
+                    f"Aviso: Falha ao criar executor para o endpoint {ep_id}: {e}. Este endpoint não será utilizado."
                 )
-
-        self.active_endpoint_ids = new_active_ids
-        self._executors = new_executors
 
         if not self.active_endpoint_ids:
             print(
                 "Aviso: Nenhum executor Globus Compute utilizável pôde ser inicializado."
             )
 
-    def _load_config_from_file(self, config_path: str) -> List[str]:
-        """Carrega IDs de endpoint de um arquivo de configuração JSON."""
+    def _load_config_from_file(self, config_path: str) -> List[Dict[str, Any]]:
+        """Carrega a configuração de endpoints de um arquivo JSON."""
         try:
             with open(config_path, "r") as f:
                 config = json.load(f)
-                ids = config.get("globus_compute_endpoint_ids", [])
-                if isinstance(ids, list) and all(isinstance(item, str) for item in ids):
-                    return ids
+                endpoints = config.get("globus_compute_endpoints", [])
+                if isinstance(endpoints, list):
+                    return endpoints
                 else:
                     print(
-                        f"Erro: Formato inválido para 'globus_compute_endpoint_ids' em {config_path}."
+                        f"Erro: Formato inválido para 'globus_compute_endpoints' em {config_path}. Esperava uma lista."
                     )
                     return []
         except FileNotFoundError:
-            print(f"Info: Arquivo de configuração {config_path} não encontrado.")
             return []
         except json.JSONDecodeError:
             print(f"Erro: Não foi possível decodificar JSON de {config_path}.")
@@ -280,213 +274,157 @@ class GlobusComputeCloudManager(BaseCloudManager):
             return False
 
     @staticmethod
-    def select_endpoints_interactive() -> List[str]:
+    def select_endpoints_interactive() -> List[Dict[str, Any]]:
         """
-        Permite ao usuário selecionar interativamente um ou mais endpoints Globus Compute existentes.
-        Retorna uma lista de IDs de endpoints selecionados que estão 'online'.
+        Permite ao usuário selecionar interativamente endpoints e adicionar especificações customizadas.
+        Retorna uma lista de dicionários, cada um representando um endpoint configurado.
         """
         print("\n--- Seleção Interativa de Endpoints Globus Compute ---")
-
         client = GlobusComputeClient()
         print("Listando seus endpoints Globus Compute existentes...")
 
-        available_endpoints_details = []
+        available_endpoints = []
         try:
-            raw_endpoints = client.get_endpoints(client)
-            if not raw_endpoints:
-                print("Nenhum endpoint encontrado na sua conta Globus Compute.")
-            for i, ep_info in enumerate(raw_endpoints):
+            for ep_info in client.get_endpoints():
                 try:
                     status_info = client.get_endpoint_status(ep_info["uuid"])
-                    details = {
-                        "uuid": ep_info["uuid"],
-                        "name": ep_info["name"],
-                        "status": status_info["status"],
-                    }
-                    available_endpoints_details.append(details)
-                    print(
-                        f"{i + 1} - Nome: {details['name']} (ID: {details['uuid']}) - Status: {details['status']}"
+                    available_endpoints.append(
+                        {
+                            "uuid": ep_info["uuid"],
+                            "name": ep_info["name"],
+                            "status": status_info["status"],
+                        }
                     )
                 except Exception as e_status:
                     print(
-                        f"Erro ao obter status para endpoint {ep_info.get('name', ep_info.get('uuid', 'Desconhecido'))}: {e_status}"
+                        f"  Aviso: Não foi possível obter status para {ep_info.get('name')}: {e_status}"
                     )
         except Exception as e_list:
             print(f"Não foi possível listar os endpoints: {e_list}")
-            print(
-                "Certifique-se de que está autenticado e o serviço Globus Compute está disponível."
-            )
             return []
 
-        if not available_endpoints_details:
-            print("\nNenhum endpoint do Globus Compute encontrado ou acessível.")
-            print(
-                "Para configurar um novo endpoint, siga as instruções da documentação do Globus Compute:"
-            )
-            print("  1. Instale: pip install globus-compute-endpoint")
-            print(
-                "  2. Configure: globus-compute-endpoint configure <NOME_DO_ENDPOINT>"
-            )
-            print("  3. Inicie: globus-compute-endpoint start <NOME_DO_ENDPOINT>")
+        if not available_endpoints:
+            print("\nNenhum endpoint encontrado.")
             return []
 
-        selected_endpoint_ids = []
+        for i, details in enumerate(available_endpoints):
+            print(
+                f"  {i + 1} - Nome: {details['name']} (ID: {details['uuid']}) - Status: {details['status']}"
+            )
+
+        final_selected_endpoints = []
         while True:
             user_input = (
                 input(
-                    "\nDigite o(s) número(s) dos endpoints que deseja usar (separados por espaço/vírgula, 'todos' para selecionar todos os online, ou 'q' para sair): "
+                    "\nDigite o número do endpoint que deseja configurar (ou 'q' para finalizar a seleção): "
                 )
                 .strip()
                 .lower()
             )
-
             if user_input == "q":
-                return []
-
-            if user_input == "todos":
-                ids_to_add = [
-                    ep["uuid"]
-                    for ep in available_endpoints_details
-                    if ep["status"] == "online"
-                ]
-                if not ids_to_add:
+                if final_selected_endpoints:
                     print(
-                        "Nenhum endpoint 'online' encontrado para selecionar com 'todos'."
+                        f"\nSeleção finalizada. Endpoints configurados: {[ep['name'] for ep in final_selected_endpoints]}"
                     )
-                    continue
-                selected_endpoint_ids.extend(ids_to_add)
-                # set remove duplicatas
-                selected_endpoint_ids = sorted(list(set(selected_endpoint_ids)))
-                print(
-                    f"Endpoints 'online' selecionados: {', '.join(selected_endpoint_ids)}"
-                )
-                return selected_endpoint_ids
-
-            selected_numbers_str = re.findall(r"\d+", user_input)
-            if not selected_numbers_str:
-                print("Nenhum número detectado na entrada. Tente novamente.")
-                continue
+                else:
+                    print("\nSeleção finalizada sem nenhum endpoint configurado.")
+                return final_selected_endpoints
 
             try:
-                selected_numbers = [int(num_str) for num_str in selected_numbers_str]
-            except ValueError:
-                print(
-                    "Entrada inválida. Por favor, digite apenas números, 'todos' ou 'q'."
-                )
-                continue
-
-            current_selection_round_ids = []
-            valid_selection_this_round = True
-            for num in selected_numbers:
+                num = int(user_input)
                 index = num - 1
-                if 0 <= index < len(available_endpoints_details):
-                    ep_data = available_endpoints_details[index]
-                    if ep_data["status"] != "online":
-                        print(
-                            f"AVISO: Endpoint '{ep_data['name']}' (ID: {ep_data['uuid']}) não está 'online' (status: {ep_data['status']}). "
-                            "Ele não será adicionado. Por favor, inicie-o se desejar usá-lo."
-                        )
-                    else:
-                        current_selection_round_ids.append(ep_data["uuid"])
-                else:
+                if not (0 <= index < len(available_endpoints)):
+                    print("Número inválido. Tente novamente.")
+                    continue
+
+                selected_ep_details = available_endpoints[index]
+
+                # Verifica se o endpoint já foi adicionado
+                if any(
+                    ep["id"] == selected_ep_details["uuid"]
+                    for ep in final_selected_endpoints
+                ):
                     print(
-                        f"Número de endpoint inválido: {num}. Por favor, verifique e tente novamente."
+                        f"O endpoint '{selected_ep_details['name']}' já foi adicionado."
                     )
-                    valid_selection_this_round = False
-                    current_selection_round_ids = []
-                    break
+                    continue
 
-            if valid_selection_this_round and current_selection_round_ids:
-                selected_endpoint_ids.extend(current_selection_round_ids)
-                # Remover duplicatas e ordenar
-                selected_endpoint_ids = sorted(list(set(selected_endpoint_ids)))
-                print(
-                    f"Endpoint(s) atualmente selecionado(s): {', '.join(selected_endpoint_ids) if selected_endpoint_ids else 'Nenhum'}"
-                )
-
-                confirm = (
+                # Adicionar especificações customizadas
+                custom_specs = {}
+                add_specs = (
                     input(
-                        "Deseja adicionar mais endpoints (s/N) ou finalizar a seleção (ENTER para finalizar)? "
+                        f"Deseja adicionar especificações para '{selected_ep_details['name']}'? (s/N): "
                     )
                     .strip()
                     .lower()
                 )
-                if confirm != "s":
-                    if selected_endpoint_ids:
-                        print(
-                            f"Seleção finalizada. Endpoints escolhidos: {', '.join(selected_endpoint_ids)}"
-                        )
-                        return selected_endpoint_ids
-                    else:
-                        print("Nenhum endpoint válido foi selecionado.")
+                if add_specs == "s":
+                    print(
+                        "Digite as especificações no formato 'chave=valor'. Deixe em branco e pressione ENTER para finalizar."
+                    )
+                    while True:
+                        spec_input = input("  Spec (ex: ram=16GB, tags=gpu): ").strip()
+                        if not spec_input:
+                            break
+                        if "=" not in spec_input:
+                            print("  Formato inválido. Use 'chave=valor'.")
+                            continue
+                        key, value = spec_input.split("=", 1)
+                        custom_specs[key.strip()] = value.strip()
 
-            elif not current_selection_round_ids and valid_selection_this_round:
-                print("Nenhum endpoint válido adicionado nesta rodada.")
+                endpoint_object = {
+                    "id": selected_ep_details["uuid"],
+                    "name": selected_ep_details["name"],
+                    "status_at_config": selected_ep_details["status"],
+                    "specs": custom_specs,
+                }
+
+                final_selected_endpoints.append(endpoint_object)
+                print(
+                    f"Endpoint '{selected_ep_details['name']}' adicionado à configuração."
+                )
+
+            except ValueError:
+                print("Entrada inválida. Por favor, digite um número ou 'q'.")
 
     @staticmethod
     def save_config_to_file(
-        endpoint_ids: List[str], config_path: str = DEFAULT_CONFIG_PATH
+        endpoints_details: List[Dict[str, Any]], config_path: str = DEFAULT_CONFIG_PATH
     ):
-        """Salva os IDs dos endpoints do Globus Compute em um arquivo de configuração JSON."""
-        config_to_save = {"globus_compute_endpoint_ids": endpoint_ids}
+        """Salva os detalhes dos endpoints (objetos) em um arquivo de configuração JSON."""
+        config_to_save = {"globus_compute_endpoints": endpoints_details}
         try:
             with open(config_path, "w") as f:
                 json.dump(config_to_save, f, indent=4)
             print(f"\nConfiguração de endpoints salva em {config_path}")
         except IOError as e:
             print(f"Erro ao salvar o arquivo de configuração {config_path}: {e}")
-            raise e
+            raise
+
+    # def get_endpoints_specs(self) -> Dict[str, Any]:
+    #
+    #     return self._client.get_endpoint_metadata()
 
     def configure_endpoints_interactive_and_save(
-        self, save_to_path: Optional[str] = None, auto_activate_session: bool = True
+        self, save_to_path: Optional[str] = None
     ) -> bool:
         """
-        Executa o processo interativo de seleção de endpoints, atualiza os endpoints
-        ativos deste gerenciador e, opcionalmente, salva a configuração.
-
-        Args:
-            save_to_path: Caminho para salvar o arquivo de configuração. Se None, usa
-                          o path de configuração padrão do gerenciador.
-            auto_activate_session: Se True, tenta autenticar antes de listar endpoints.
-
-        Returns:
-            True se a configuração foi bem-sucedida e pelo menos um endpoint foi ativado,
-            False caso contrário.
+        Executa o processo interativo de seleção e configuração de endpoints,
+        atualiza os endpoints ativos deste gerenciador e salva a configuração.
         """
-        if auto_activate_session:
-            print("Verificando/ativando sessão Globus Compute...")
-            if not GlobusComputeCloudManager.do_login_interactive():
-                print(
-                    "Falha na autenticação. Não é possível prosseguir com a configuração do endpoint."
-                )
-                return False
+        # GlobusComputeCloudManager.do_login_interactive()
 
-        selected_ids = GlobusComputeCloudManager.select_endpoints_interactive()
+        selected_endpoints_config = (
+            GlobusComputeCloudManager.select_endpoints_interactive()
+        )
 
-        if selected_ids:
-            self._initialize_executors(selected_ids)
-
-            if not self.active_endpoint_ids:
-                print(
-                    "Configuração falhou: Nenhum dos endpoints selecionados pôde ser ativado como executor."
-                )
-                return False
-
+        if selected_endpoints_config:
             path_to_save = (
                 save_to_path if save_to_path is not None else self._config_file_path
             )
-            GlobusComputeCloudManager.save_config_to_file(
-                self.active_endpoint_ids, path_to_save
-            )
-            print(
-                f"Gerenciador Globus Compute configurado com endpoint(s): {', '.join(self.active_endpoint_ids)}"
-            )
-            return True
+            self.save_config_to_file(selected_endpoints_config, path_to_save)
+            self._initialize_from_config(selected_endpoints_config)
+            return True if self.active_endpoint_ids else False
         else:
-            print(
-                "Nenhum endpoint foi selecionado ou a seleção foi cancelada. "
-                "A configuração do gerenciador permanece inalterada ou vazia."
-            )
-            if not self.active_endpoint_ids:
-                return False
-            return True
+            print("Nenhuma configuração de endpoint foi criada.")
+            return False
