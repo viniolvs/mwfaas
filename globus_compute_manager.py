@@ -73,8 +73,11 @@ class GlobusComputeCloudManager(BaseCloudManager):
         """Inicializa os atributos e executores a partir de uma configuração carregada."""
         self.shutdown_executors()  # Limpa executores antigos
         self.endpoints_details = endpoints_config
+        endpoint_ids_to_init: List[str]
         endpoint_ids_to_init = [
-            ep.get("id") for ep in self.endpoints_details if ep.get("id")
+            ep_id
+            for ep in self.endpoints_details
+            if (ep_id := ep.get("id")) and isinstance(ep_id, str)
         ]
         self._initialize_executors(endpoint_ids_to_init)
 

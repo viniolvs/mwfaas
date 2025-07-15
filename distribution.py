@@ -1,7 +1,6 @@
 # msfaas/distribution.py
 
 import abc
-import math
 
 
 class BaseDistributionStrategy(abc.ABC):
