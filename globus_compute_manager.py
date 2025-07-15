@@ -1,7 +1,6 @@
 # msfaas/globus_compute_manager.py
 
 import json
-import re
 import uuid
 import cloudpickle
 from typing import Any, Optional, List, Dict
@@ -274,6 +273,41 @@ class GlobusComputeCloudManager(BaseCloudManager):
             return False
 
     @staticmethod
+    def parse_endpoint_specs(ep_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extrai e organiza as especificações relevantes do metadata de um endpoint do Globus Compute.
+
+        Args:
+            ep_metadata: O dicionário completo de metadata retornado pela API do Globus Compute.
+
+        Returns:
+            Um dicionário contendo as especificações organizadas.
+        """
+        if not ep_metadata:
+            return {}
+
+        # Usamos .get() extensivamente para evitar erros se uma chave não existir
+        config = ep_metadata.get("config", {})
+        engine = config.get("engine", {})
+        executor = engine.get("executor", {})
+        provider = executor.get("provider", {})
+
+        specs = {
+            # Identificação
+            "hostname": ep_metadata.get("hostname"),
+            "ip_address": ep_metadata.get("ip_address"),
+            # Desempenho e Capacidade (extraído automaticamente)
+            "execution_provider": provider.get("type"),
+            "max_parallel_workers": executor.get("max_workers_per_node"),
+            "cores_per_worker": executor.get("cores_per_worker"),
+            "available_accelerators": executor.get("available_accelerators", []),
+            # Software
+            "python_version": ep_metadata.get("python_version"),
+            "endpoint_version": ep_metadata.get("endpoint_version"),
+        }
+        return specs
+
+    @staticmethod
     def select_endpoints_interactive() -> List[Dict[str, Any]]:
         """
         Permite ao usuário selecionar interativamente endpoints e adicionar especificações customizadas.
@@ -359,6 +393,9 @@ class GlobusComputeCloudManager(BaseCloudManager):
                     .lower()
                 )
                 if add_specs == "s":
+                    custom_specs = GlobusComputeCloudManager.parse_endpoint_specs(
+                        client.get_endpoint_metadata(selected_ep_details["uuid"])
+                    )
                     print(
                         "Digite as especificações no formato 'chave=valor'. Deixe em branco e pressione ENTER para finalizar."
                     )
@@ -375,7 +412,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
                 endpoint_object = {
                     "id": selected_ep_details["uuid"],
                     "name": selected_ep_details["name"],
-                    "status_at_config": selected_ep_details["status"],
                     "specs": custom_specs,
                 }
 
