@@ -55,7 +55,7 @@ class DefaultDistributionStrategy(BaseDistributionStrategy):
         if not isinstance(num_target_splits, int) or num_target_splits <= 0:
             raise ValueError("num_target_splits deve ser um inteiro positivo.")
 
-        if not data_input:  # Se a lista de entrada estiver vazia
+        if not data_input:
             return []
 
         n = len(data_input)
@@ -73,8 +73,6 @@ class DefaultDistributionStrategy(BaseDistributionStrategy):
 
         for i in range(num_target_splits):
             chunk_size = base_size + (1 if i < remainder else 0)
-
-            # Pega o bloco de dados. Se current_pos ultrapassou n, o slice será vazio.
             chunk = data_input[current_pos : current_pos + chunk_size]
             chunks.append(chunk)
             current_pos += chunk_size

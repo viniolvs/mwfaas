@@ -8,7 +8,6 @@ from multiprocessing import Pool, TimeoutError as MPTimeoutError
 import os
 
 
-# Esta função auxiliar será executada pelos processos de trabalho no Pool.
 # Deve ser definida no nível superior de um módulo para ser serializável (picklable) pelo multiprocessing.
 def _execute_task_in_worker_process(
     serialized_user_function_bytes: bytes, data_chunk: Any
@@ -101,13 +100,10 @@ class BaseCloudManager(abc.ABC):
 class LocalCloudManager(BaseCloudManager):
     """
     Um CloudManager que simula a execução FaaS localmente usando um `multiprocessing.Pool`.
-    Útil para desenvolvimento e testes sem a necessidade de implantação em nuvem real.
     """
 
     def __init__(self, num_workers: int | None = None):
         """
-        Inicializa o LocalCloudManager.
-
         Args:
             num_workers (int, optional): O número de processos de trabalho a serem usados no pool.
                                          Padrão para `os.cpu_count()`.
@@ -119,13 +115,12 @@ class LocalCloudManager(BaseCloudManager):
         else:
             self._num_workers = num_workers
 
-        self._pool = None  # Inicializado "preguiçosamente" ou explicitamente
-        self._active_tasks = {}  # Armazena task_id -> AsyncResult (do multiprocessing.Pool)
-        self._ensure_pool_initialized()  # Garante que o pool seja criado na inicialização
+        self._pool = None
+        self._active_tasks = {}
+        self._ensure_pool_initialized()
 
     def _ensure_pool_initialized(self):
         if self._pool is None:
-            # print(f"LocalCloudManager: Inicializando pool com {self._num_workers} workers.") # Para log
             self._pool = Pool(processes=self._num_workers)
             self._active_tasks = {}
 
@@ -137,10 +132,8 @@ class LocalCloudManager(BaseCloudManager):
         """
         Submete uma tarefa para o pool de multiprocessing local.
         """
-        self._ensure_pool_initialized()  # Garante que o pool exista
-        if (
-            self._pool is None
-        ):  # Verificação adicional caso _ensure_pool_initialized falhe ou seja contornada
+        self._ensure_pool_initialized()
+        if self._pool is None:
             raise RuntimeError(
                 "LocalCloudManager não foi inicializado corretamente ou já foi desligado."
             )

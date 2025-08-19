@@ -137,8 +137,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
         """
         if not self.active_endpoint_ids or not self._executors:
             return 0
-        # Cada endpoint é um "alvo" para paralelismo ao nível do Master.
-        # O número real de workers *dentro* de cada endpoint é gerenciado pelo Globus Compute.
         return len(self.active_endpoint_ids)
 
     def submit_task(self, serialized_function_bytes: bytes, data_chunk: Any) -> str:
@@ -208,7 +206,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
                     f"Resultado da tarefa {internal_task_id} (GC UUID: {future.task_id}): {result}"
                 )
                 outcomes.append(result)
-            except FuturesTimeoutError:  # concurrent.futures.TimeoutError
+            except FuturesTimeoutError:
                 gc_uuid = future.task_id if hasattr(future, "task_uuid") else "N/A"
                 outcomes.append(
                     FuturesTimeoutError(
@@ -218,8 +216,8 @@ class GlobusComputeCloudManager(BaseCloudManager):
                 )
             except Exception as e:
                 outcomes.append(e)
-            # remove de self._active_tasks após obter o resultado para economizar memória
-            # del self._active_tasks[internal_task_id]
+
+            del self._active_tasks[internal_task_id]
         return outcomes
 
     def shutdown_executors(self):
@@ -230,14 +228,13 @@ class GlobusComputeCloudManager(BaseCloudManager):
         for endpoint_id, executor in self._executors.items():
             try:
                 # print(f"Desligando executor para o endpoint {endpoint_id}...") # Log
-                executor.shutdown(wait=True)  # Espera tarefas em andamento (padrão)
+                executor.shutdown(wait=True)
             except Exception as e:
                 print(
                     f"Erro ao desligar o executor para o endpoint {endpoint_id}: {e}"
                 )  # Log
         self._executors.clear()
         self._active_tasks.clear()
-        # print("Executores Globus Compute desligados.") # Log
 
     def shutdown(self):
         """Método de limpeza para o BaseCloudManager."""
@@ -265,7 +262,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
         )
         try:
             client = GlobusComputeClient()
-            client.version_check()  # Operação leve para forçar o fluxo de login se necessário
+            client.version_check()
             print("Autenticação Globus parece estar ativa ou foi bem-sucedida.")
             return True
         except Exception as e:
@@ -289,7 +286,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
         if not ep_metadata:
             return {}
 
-        # Usamos .get() extensivamente para evitar erros se uma chave não existir
         config = ep_metadata.get("config", {})
         engine = config.get("engine", {})
         executor = engine.get("executor", {})
@@ -439,10 +435,6 @@ class GlobusComputeCloudManager(BaseCloudManager):
         except IOError as e:
             print(f"Erro ao salvar o arquivo de configuração {config_path}: {e}")
             raise
-
-    # def get_endpoints_specs(self) -> Dict[str, Any]:
-    #
-    #     return self._client.get_endpoint_metadata()
 
     def configure_endpoints_interactive_and_save(
         self, save_to_path: Optional[str] = None

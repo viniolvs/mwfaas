@@ -43,7 +43,7 @@ class Master:
         self._task_metadata: List[dict] = []
 
     def _serialize_function(self, user_function: Callable[[Any], Any]):
-        """Serializa a função fornecida pelo usuário usando cloudpickle."""
+        """Serializa a função usando cloudpickle."""
         try:
             self._user_function_serialized = cloudpickle.dumps(user_function)
         except Exception as e:
@@ -103,6 +103,7 @@ class Master:
         if not data_chunks and not data_input:
             return []
 
+        # list of any, exception or None
         collected_results_ordered: List[Optional[Union[Any, Exception]]]
         collected_results_ordered = [None] * len(data_chunks)
 
@@ -110,7 +111,7 @@ class Master:
 
         for i, chunk in enumerate(data_chunks):
             try:
-                if self._user_function_serialized is None:  # Checagem de segurança
+                if self._user_function_serialized is None:
                     raise RuntimeError(
                         "Função do usuário não foi serializada corretamente."
                     )
@@ -143,18 +144,17 @@ class Master:
                     task_ids_to_fetch
                 )
 
-                if len(task_outcomes) != len(task_ids_to_fetch):
+                if len(task_outcomes) != len(
+                    task_ids_to_fetch
+                ):  # handle inconsistent results
                     err_msg = RuntimeError(
                         "Contagem de resultados do CloudManager inconsistente."
                     )
-                    # Preenche todos os resultados esperados mas não retornados com erro
                     processed_ids_indices = {
                         task_info["id"]: task_info["original_index"]
                         for task_info in tasks_for_result_collection
                     }
-                    for k, outcome_idx in enumerate(
-                        range(len(task_outcomes))
-                    ):  # Processa o que foi retornado
+                    for k, outcome_idx in enumerate(range(len(task_outcomes))):
                         task_id_processed = task_ids_to_fetch[k]
                         original_chunk_idx = processed_ids_indices.pop(
                             task_id_processed
@@ -249,8 +249,6 @@ class Master:
                                 e_collect,
                             )
 
-        # Assegura que a lista retornada não contenha mais 'None' se todos os caminhos foram cobertos.
-        # Se algum None puder persistir, o tipo de retorno deveria ser List[Optional[Union[Any, Exception]]].
         final_results: List[Union[Any, Exception]] = []
         for item in collected_results_ordered:
             if item is None:
@@ -267,6 +265,7 @@ class Master:
         """Retorna uma cópia dos metadados sobre todas as tarefas da última execução de `run`."""
         return [status.copy() for status in self._task_metadata]
 
+    # representation
     def __repr__(self) -> str:
         cm_name = (
             self.cloud_manager.__class__.__name__ if self.cloud_manager else "None"
