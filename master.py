@@ -261,6 +261,48 @@ class Master:
                 final_results.append(item)
         return final_results
 
+    def reduce(
+        self,
+        results_list: List[Union[Any, Exception]],
+        reduce_function: Callable[[List[Any]], Any],
+    ) -> Any:
+        """
+        Agrega uma lista de resultados parciais em um único resultado final.
+
+        Este método implementa a fase "Reduce" do paradigma MapReduce. Ele primeiro
+        filtra a lista de resultados para incluir apenas aqueles que não são exceções
+        (ou seja, tarefas bem-sucedidas) e, em seguida, aplica a `reduce_function`
+        fornecida pelo usuário a essa lista de resultados bem-sucedidos.
+
+        Args:
+            results_list: A lista de resultados retornada pelo método `run()`,
+                          que pode conter resultados bem-sucedidos e objetos de Exceção.
+            reduce_function: A função definida pelo usuário que sabe como combinar
+                             os resultados. Ela deve aceitar um único argumento: uma lista
+                             de resultados bem-sucedidos.
+
+        Returns:
+            O resultado final e agregado, do tipo retornado pela `reduce_function`.
+            Retorna `None` se não houver resultados bem-sucedidos para agregar.
+        """
+        successful_results = [
+            result for result in results_list if not isinstance(result, Exception)
+        ]
+
+        if not successful_results:
+            print("Aviso: Nenhum resultado bem-sucedido para agregar. Retornando None.")
+            return None
+
+        try:
+            print(
+                f"Agregando {len(successful_results)} resultado(s) com a função '{reduce_function.__name__}'..."
+            )
+            final_result = reduce_function(successful_results)
+            return final_result
+        except Exception as e:
+            print(f"ERRO: A função de agregação '{reduce_function.__name__}' falhou.")
+            raise e
+
     def get_task_statuses(self) -> List[dict]:
         """Retorna uma cópia dos metadados sobre todas as tarefas da última execução de `run`."""
         return [status.copy() for status in self._task_metadata]
