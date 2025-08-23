@@ -35,10 +35,40 @@ class Master:
         self._user_function_serialized: Optional[bytes] = None
         self._task_metadata: List[dict] = []
 
+    def _create_error_handling_wrapper(
+        self, user_function: Callable
+    ) -> Callable[[List[Any]], Any]:
+        """
+        Cria e retorna uma nova função que 'embrulha' a função do usuário
+        com uma lógica de tratamento de erro para o TypeError.
+        Args:
+            user_function: A função original fornecida pelo usuário.
+
+        Returns:
+            Uma nova função que, ao ser chamada, executa a original
+            dentro de um bloco try/except.
+        """
+
+        def wrapped_function(chunk: List[Any]) -> Any:
+            """Esta é a função que será de fato serializada e enviada ao worker."""
+            try:
+                return user_function(chunk)
+            except TypeError as e:
+                helpful_error_msg = (
+                    "A função do usuário falhou com um TypeError. "
+                    "Isso geralmente ocorre porque a função não foi projetada para receber uma lista ('chunk') de itens como argumento. "
+                    "Lembre-se: a função do worker deve sempre aceitar uma lista e iterar sobre seus itens. "
+                    f"Erro original: {e}"
+                )
+                raise ValueError(helpful_error_msg) from e
+
+        return wrapped_function
+
     def _serialize_function(self, user_function: Callable[[Any], Any]):
-        """Serializa a função usando cloudpickle."""
+        """Serializa a função com tratamento de erros usando cloudpickle."""
         try:
-            self._user_function_serialized = cloudpickle.dumps(user_function)
+            wrapped_function = self._create_error_handling_wrapper(user_function)
+            self._user_function_serialized = cloudpickle.dumps(wrapped_function)
         except Exception as e:
             raise e
 
