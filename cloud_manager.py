@@ -11,7 +11,7 @@ class CloudManager(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_target_parallelism(self) -> int:
+    def get_worker_count(self) -> int:
         """
         Retorna o número recomendado ou disponível de workers/endpoints paralelos.
         Este valor influencia como a carga de trabalho é dividida.
@@ -33,7 +33,7 @@ class CloudManager(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_all_results_for_ids(
+    def get_results_for_ids(
         self, task_ids: list, timeout_per_task: float | None = None
     ) -> list:
         """
@@ -58,7 +58,6 @@ class CloudManager(abc.ABC):
         Opcional: Realiza qualquer limpeza necessária, como desligar um pool de processos.
         A implementação padrão não faz nada. As subclasses devem sobrescrever se necessário.
         """
-        # print(f"Shutdown chamado em {self.__class__.__name__}, nenhuma ação padrão.")
         pass
 
     def __enter__(self):

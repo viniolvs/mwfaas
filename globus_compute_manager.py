@@ -130,7 +130,7 @@ class GlobusComputeCloudManager(CloudManager):
 
     # --- Implementação dos Métodos Abstratos de CloudManager ---
 
-    def get_target_parallelism(self) -> int:
+    def get_worker_count(self) -> int:
         """
         Retorna o número de endpoints Globus Compute ativos e utilizáveis.
         Pode ser ajustado para refletir o total de workers, se essa informação estiver disponível.
@@ -174,7 +174,7 @@ class GlobusComputeCloudManager(CloudManager):
                 f"Falha ao submeter tarefa ao endpoint Globus Compute {selected_endpoint_id}: {e}"
             ) from e
 
-    def get_all_results_for_ids(
+    def get_results_for_ids(
         self, task_ids: List[str], timeout_per_task: Optional[float] = None
     ) -> List[Any]:
         """
@@ -240,9 +240,9 @@ class GlobusComputeCloudManager(CloudManager):
     # --- Métodos de Configuração e Autenticação  ---
 
     @staticmethod
-    def do_logout():
+    def logout():
         """Realiza a desautenticação (logout) com o Globus Compute."""
-        print("\n--- Desautenticação Globus ---")
+        print("\n--- Logout Globus ---")
         try:
             client = GlobusComputeClient()
             client.logout()
@@ -251,22 +251,20 @@ class GlobusComputeCloudManager(CloudManager):
             print(f"Erro durante a desautenticação: {e}")
 
     @staticmethod
-    def do_login_interactive() -> bool:
+    def login_interactive() -> bool:
         """Realiza a autenticação interativa com o Globus Compute."""
-        print("\n--- Autenticação Globus ---")
+        print("\n--- Login Globus ---")
         print(
             "Siga as instruções na tela/navegador para completar o processo de login."
         )
         try:
             client = GlobusComputeClient()
             client.version_check()
-            print("Autenticação Globus parece estar ativa ou foi bem-sucedida.")
+            print("Autenticação Globus foi bem-sucedida.")
             return True
         except Exception as e:
-            print(f"Erro durante a tentativa de autenticação/verificação: {e}")
-            print(
-                "Por favor, tente novamente ou verifique sua configuração/ambiente Globus."
-            )
+            print(f"Erro durante a tentativa de autenticação: {e}")
+            print("Por favor, tente novamente ou verifique sua configuração do Globus.")
             return False
 
     @staticmethod
@@ -440,7 +438,7 @@ class GlobusComputeCloudManager(CloudManager):
         Executa o processo interativo de seleção e configuração de endpoints,
         atualiza os endpoints ativos deste gerenciador e salva a configuração.
         """
-        # GlobusComputeCloudManager.do_login_interactive()
+        GlobusComputeCloudManager.login_interactive()
 
         selected_endpoints_config = (
             GlobusComputeCloudManager.select_endpoints_interactive()

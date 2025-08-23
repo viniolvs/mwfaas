@@ -41,7 +41,7 @@ class DefaultDistributionStrategy(DistributionStrategy):
             data_input: A lista de itens de dados.
             num_target_splits: O número desejado de blocos. Deve ser um inteiro positivo.
                                Este valor é tipicamente fornecido pelo `Master` após consulta
-                               ao `CloudManager.get_target_parallelism()`.
+                               ao `CloudManager.get_worker_count()`.
 
         Returns:
             Uma lista de listas (blocos). Retorna uma lista vazia se `data_input` for vazio.

@@ -58,7 +58,7 @@ class LocalCloudManager(CloudManager):
             self._pool = Pool(processes=self._num_workers)
             self._active_tasks = {}
 
-    def get_target_parallelism(self) -> int:
+    def get_worker_count(self) -> int:
         """Retorna o número de processos de trabalho no pool."""
         return self._num_workers
 
@@ -86,7 +86,7 @@ class LocalCloudManager(CloudManager):
                 f"Falha ao submeter tarefa {task_id} localmente: {e}"
             ) from e
 
-    def get_all_results_for_ids(
+    def get_results_for_ids(
         self, task_ids: list, timeout_per_task: float | None = None
     ) -> list:
         """

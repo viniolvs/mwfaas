@@ -72,19 +72,19 @@ class Master:
         self._serialize_function(user_function)
 
         try:
-            num_target_splits = self.cloud_manager.get_target_parallelism()
+            num_target_splits = self.cloud_manager.get_worker_count()
             if not (isinstance(num_target_splits, int) and num_target_splits > 0):
                 raise ValueError(
-                    f"O método get_target_parallelism() do CloudManager deve retornar um "
+                    f"O método get_worker_count() do CloudManager deve retornar um "
                     f"inteiro positivo, mas retornou: {num_target_splits}"
                 )
         except AttributeError:
             raise AttributeError(
-                "A instância de CloudManager deve implementar o método get_target_parallelism()."
+                "A instância de CloudManager deve implementar o método get_worker_count()."
             ) from None
         except Exception as e_parallelism:
             raise RuntimeError(
-                f"Erro ao chamar get_target_parallelism() no CloudManager: {e_parallelism}"
+                f"Erro ao chamar get_worker_count() no CloudManager: {e_parallelism}"
             ) from e_parallelism
 
         try:
@@ -140,7 +140,7 @@ class Master:
 
         if task_ids_to_fetch:
             try:
-                task_outcomes = self.cloud_manager.get_all_results_for_ids(
+                task_outcomes = self.cloud_manager.get_results_for_ids(
                     task_ids_to_fetch
                 )
 
