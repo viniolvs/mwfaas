@@ -1,0 +1,37 @@
+digraph "Arquitetura Master-Slave FaaS com Globus Compute" {
+	graph [bgcolor="#F7F7F7" fontcolor="#2D3436" fontname="Sans-Serif" fontsize=16 label="Arquitetura Master-Slave FaaS com Globus Compute" nodesep=0.60 pad=2.0 rankdir=TB ranksep=0.75 splines=ortho]
+	node [fixedsize=true fontcolor="#2D3436" fontname=Arial fontsize=12 height=1.4 imagescale=true labelloc=b shape=box style=rounded width=1.4]
+	edge [color="#7B8894"]
+	"25474aca9c704340b929b713f0dae8c1" [label="Usuário da Biblioteca" height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/onprem/client/user.png" shape=none]
+	subgraph "cluster_Entradas do Usuário" {
+		graph [bgcolor="#F7F7F7" fontcolor="#333333" fontname="Sans-Serif" fontsize=14 label="Entradas do Usuário" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		"9c79a215c3994a8182789185db82527a" [label=user_function height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/programming/language/python.png" shape=none]
+		"876f084a0e0c47f1ab0d1d364fd38b77" [label="Dados de Entrada" height=1.9 image="./data_icon.png" shape=none]
+	}
+	"0d41eb5979184a78a3a1a1c349fa37a9" -> "6cd1d953983a4d5aa2f1f91325af6691" [label=usa dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"0d41eb5979184a78a3a1a1c349fa37a9" -> "34fe1106cd5d41b8b75bcd34cefb74c8" [label=chama dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	subgraph "cluster_Biblioteca mwfaas" {
+		graph [bgcolor="#F7F7F7" fontcolor="#333333" fontname="Sans-Serif" fontsize=14 label="Biblioteca mwfaas" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		"0d41eb5979184a78a3a1a1c349fa37a9" [label=Master height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/programming/language/python.png" shape=none]
+		"6cd1d953983a4d5aa2f1f91325af6691" [label="Distribution Strategy" height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/programming/language/python.png" shape=none]
+		"34fe1106cd5d41b8b75bcd34cefb74c8" [label="GlobusCompute Manager" height=1.9 image="./globus_icon.png" shape=none]
+	}
+	"34fe1106cd5d41b8b75bcd34cefb74c8" -> e5ea8815a9094bb8b94c170df26beb9f [label="submete tarefa" dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	e5ea8815a9094bb8b94c170df26beb9f -> "50ea03cf0099471498ac5c83221c6255" [label="executa em" dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	subgraph "cluster_Infraestrutura Globus Compute" {
+		graph [bgcolor="#F7F7F7" fontcolor="#333333" fontname="Sans-Serif" fontsize=14 label="Infraestrutura Globus Compute" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		e5ea8815a9094bb8b94c170df26beb9f [label="Globus Compute Endpoint" height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/onprem/compute/server.png" shape=none]
+		subgraph "cluster_Nós de Trabalho (Workers)" {
+			graph [bgcolor="#EBF3E7" fontname="Sans-Serif" fontsize=12 label="Nós de Trabalho (Workers)" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+			"50ea03cf0099471498ac5c83221c6255" [label="Slave (worker 1)" height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/programming/language/python.png" shape=none]
+			"14956a1f32f44f21b4db878ab9bd507d" [label="Slave (worker 2)" height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/programming/language/python.png" shape=none]
+			"427671b3f4ba4df8bf109755631177bb" [label="Slave (worker N...)" height=1.9 image="/home/vinicius/Documents/facul/tcc/project/mwfaas/venv/lib/python3.10/site-packages/resources/programming/language/python.png" shape=none]
+		}
+	}
+	"25474aca9c704340b929b713f0dae8c1" -> "9c79a215c3994a8182789185db82527a" [label=fornece dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"25474aca9c704340b929b713f0dae8c1" -> "876f084a0e0c47f1ab0d1d364fd38b77" [label=fornece dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"876f084a0e0c47f1ab0d1d364fd38b77" -> "0d41eb5979184a78a3a1a1c349fa37a9" [label=processar dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"9c79a215c3994a8182789185db82527a" -> "0d41eb5979184a78a3a1a1c349fa37a9" [label=executar dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"34fe1106cd5d41b8b75bcd34cefb74c8" -> "0d41eb5979184a78a3a1a1c349fa37a9" [label="retorna resultados" color=darkgreen dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 style=dashed]
+	"0d41eb5979184a78a3a1a1c349fa37a9" -> "25474aca9c704340b929b713f0dae8c1" [label="retorna resultados" color=darkgreen dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 style=dashed]
+}

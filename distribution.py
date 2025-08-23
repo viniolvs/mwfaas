@@ -1,4 +1,4 @@
-# msfaas/distribution.py
+# mwfaas/distribution.py
 
 import abc
 

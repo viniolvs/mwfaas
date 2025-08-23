@@ -1,4 +1,4 @@
-# msfaas/globus_compute_manager.py
+# mwfaas/globus_compute_manager.py
 
 import json
 import uuid

@@ -1,4 +1,4 @@
-# msfaas/master.py
+# mwfaas/master.py
 
 from typing import Callable, List, Union, Any, Optional
 from .cloud_manager import BaseCloudManager
