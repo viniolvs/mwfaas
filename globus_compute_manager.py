@@ -170,9 +170,6 @@ class GlobusComputeCloudManager(CloudManager):
             self._active_tasks[internal_task_id] = future
             return internal_task_id
         except Exception as e:
-            print(
-                f"ERRO ao submeter tarefa ao endpoint Globus Compute {selected_endpoint_id}: {e}"
-            )  # Log
             raise RuntimeError(
                 f"Falha ao submeter tarefa ao endpoint Globus Compute {selected_endpoint_id}: {e}"
             ) from e
