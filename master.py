@@ -72,11 +72,11 @@ class Master:
         self._serialize_function(user_function)
 
         try:
-            num_target_splits = self.cloud_manager.get_worker_count()
-            if not (isinstance(num_target_splits, int) and num_target_splits > 0):
+            num_splits = self.cloud_manager.get_worker_count()
+            if not (isinstance(num_splits, int) and num_splits > 0):
                 raise ValueError(
                     f"O método get_worker_count() do CloudManager deve retornar um "
-                    f"inteiro positivo, mas retornou: {num_target_splits}"
+                    f"inteiro positivo, mas retornou: {num_splits}"
                 )
         except AttributeError:
             raise AttributeError(
@@ -88,9 +88,7 @@ class Master:
             ) from e_parallelism
 
         try:
-            data_chunks = self.distribution_strategy.split_data(
-                data_input, num_target_splits
-            )
+            data_chunks = self.distribution_strategy.split_data(data_input, num_splits)
         except ValueError as e_split_value:
             raise ValueError(
                 f"Argumentos inválidos para a divisão de dados: {e_split_value}"

@@ -221,15 +221,11 @@ class GlobusComputeCloudManager(CloudManager):
         """Desliga todos os executores Globus Compute ativos."""
         if not self._executors:
             return
-        # print("Desligando executores Globus Compute...") # Log
         for endpoint_id, executor in self._executors.items():
             try:
-                # print(f"Desligando executor para o endpoint {endpoint_id}...") # Log
                 executor.shutdown(wait=True)
             except Exception as e:
-                print(
-                    f"Erro ao desligar o executor para o endpoint {endpoint_id}: {e}"
-                )  # Log
+                print(f"Erro ao desligar o executor para o endpoint {endpoint_id}: {e}")
         self._executors.clear()
         self._active_tasks.clear()
 
