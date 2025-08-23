@@ -35,7 +35,7 @@ class Master:
         self._user_function_serialized: Optional[bytes] = None
         self._task_metadata: List[dict] = []
 
-    def _create_error_handling_wrapper(
+    def _wrap_user_function(
         self, user_function: Callable
     ) -> Callable[[List[Any]], Any]:
         """
@@ -67,7 +67,7 @@ class Master:
     def _serialize_function(self, user_function: Callable[[Any], Any]):
         """Serializa a função com tratamento de erros usando cloudpickle."""
         try:
-            wrapped_function = self._create_error_handling_wrapper(user_function)
+            wrapped_function = self._wrap_user_function(user_function)
             self._user_function_serialized = cloudpickle.dumps(wrapped_function)
         except Exception as e:
             raise e
