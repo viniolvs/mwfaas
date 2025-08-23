@@ -11,12 +11,12 @@ from concurrent.futures import (
     TimeoutError as FuturesTimeoutError,
 )
 
-from .cloud_manager import BaseCloudManager
+from .cloud_manager import CloudManager
 
 DEFAULT_CONFIG_PATH = "globus_config.json"
 
 
-class GlobusComputeCloudManager(BaseCloudManager):
+class GlobusComputeCloudManager(CloudManager):
     """
     Um CloudManager para interagir com o Globus Compute.
     Ele lida com autenticação, seleção de endpoints, submissão de tarefas e coleta de resultados.
@@ -128,7 +128,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
             print(f"Erro inesperado ao carregar configuração de {config_path}: {e}")
             return []
 
-    # --- Implementação dos Métodos Abstratos de BaseCloudManager ---
+    # --- Implementação dos Métodos Abstratos de CloudManager ---
 
     def get_target_parallelism(self) -> int:
         """
@@ -237,7 +237,7 @@ class GlobusComputeCloudManager(BaseCloudManager):
         self._active_tasks.clear()
 
     def shutdown(self):
-        """Método de limpeza para o BaseCloudManager."""
+        """Método de limpeza para o CloudManager."""
         self.shutdown_executors()
 
     # --- Métodos de Configuração e Autenticação  ---

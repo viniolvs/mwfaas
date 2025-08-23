@@ -1,8 +1,8 @@
 # mwfaas/master.py
 
 from typing import Callable, List, Union, Any, Optional
-from .cloud_manager import BaseCloudManager
-from .distribution import BaseDistributionStrategy
+from .cloud_manager import CloudManager
+from .distribution import DistributionStrategy
 import cloudpickle
 
 
@@ -14,8 +14,8 @@ class Master:
 
     def __init__(
         self,
-        cloud_manager: BaseCloudManager,
-        distribution_strategy: Optional[BaseDistributionStrategy] = None,
+        cloud_manager: CloudManager,
+        distribution_strategy: Optional[DistributionStrategy] = None,
     ):
         """
         Inicializa o Master.

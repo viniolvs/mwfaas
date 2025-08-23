@@ -3,7 +3,7 @@
 import abc
 
 
-class BaseDistributionStrategy(abc.ABC):
+class DistributionStrategy(abc.ABC):
     """
     Classe base abstrata para estratégias de distribuição de dados.
     Define a interface que todas as estratégias de distribuição devem implementar.
@@ -26,7 +26,7 @@ class BaseDistributionStrategy(abc.ABC):
         pass
 
 
-class DefaultDistributionStrategy(BaseDistributionStrategy):
+class DefaultDistributionStrategy(DistributionStrategy):
     """
     Uma estratégia padrão que divide os dados da forma mais equilibrada possível
     entre o número alvo de divisões. Assume que `data_input` é uma lista.

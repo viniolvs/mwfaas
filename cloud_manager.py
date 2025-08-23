@@ -31,7 +31,7 @@ def _execute_task_in_worker_process(
         return e
 
 
-class BaseCloudManager(abc.ABC):
+class CloudManager(abc.ABC):
     """
     Classe base abstrata para Gerenciadores de Nuvem (Cloud Managers).
     Define a interface para interagir com um backend FaaS (Function as a Service).
@@ -97,7 +97,7 @@ class BaseCloudManager(abc.ABC):
         self.shutdown()
 
 
-class LocalCloudManager(BaseCloudManager):
+class LocalCloudManager(CloudManager):
     """
     Um CloudManager que simula a execução FaaS localmente usando um `multiprocessing.Pool`.
     """
