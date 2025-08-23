@@ -199,9 +199,6 @@ class GlobusComputeCloudManager(CloudManager):
                     f"Recuperando o resultado da tarefa {internal_task_id} (GC UUID: {future.task_id})..."
                 )
                 result = future.result(timeout=timeout_per_task)
-                print(
-                    f"Resultado da tarefa {internal_task_id} (GC UUID: {future.task_id}): {result}"
-                )
                 outcomes.append(result)
             except FuturesTimeoutError:
                 gc_uuid = future.task_id if hasattr(future, "task_uuid") else "N/A"
