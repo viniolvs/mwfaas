@@ -2,7 +2,7 @@
 
 from typing import Callable, List, Union, Any, Optional
 from .cloud_manager import CloudManager
-from .distribution import DistributionStrategy
+from .distribution_strategy import DistributionStrategy
 import cloudpickle
 
 
@@ -15,7 +15,7 @@ class Master:
     def __init__(
         self,
         cloud_manager: CloudManager,
-        distribution_strategy: Optional[DistributionStrategy] = None,
+        distribution_strategy: DistributionStrategy,
     ):
         """
         Inicializa o Master.
@@ -26,18 +26,11 @@ class Master:
         """
         if cloud_manager is None:
             raise ValueError("Uma instância de cloud_manager é obrigatória.")
-        self.cloud_manager = cloud_manager
-
         if distribution_strategy is None:
-            from .distribution import DefaultDistributionStrategy
+            raise ValueError("Uma instância de distribution_strategy é obrigatória.")
 
-            self.distribution_strategy = DefaultDistributionStrategy()
-        else:
-            if not hasattr(distribution_strategy, "split_data"):
-                raise TypeError(
-                    "A instância de distribution_strategy deve possuir um método 'split_data'."
-                )
-            self.distribution_strategy = distribution_strategy
+        self.cloud_manager = cloud_manager
+        self.distribution_strategy = distribution_strategy
 
         self._user_function_serialized: Optional[bytes] = None
         self._task_metadata: List[dict] = []
@@ -50,7 +43,7 @@ class Master:
             raise e
 
     def run(
-        self, data_input: List[Any], user_function: Callable[[Any], Any]
+        self, data_input: Any, user_function: Callable[[Any], Any]
     ) -> List[Union[Any, Exception]]:
         """
         Orquestra o processamento paralelo de `data_input` usando `user_function`.
@@ -312,7 +305,7 @@ class Master:
         )
         ds_name = (
             self.distribution_strategy.__class__.__name__
-            if self.distribution_strategy
+            if self.distribution_strategy is not None
             else "None"
         )
         return f"<Master cloud_manager={cm_name}, distribution_strategy={ds_name}>"
