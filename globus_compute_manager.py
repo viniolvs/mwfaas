@@ -7,10 +7,7 @@ from typing import Any, Optional, List, Dict
 
 from globus_compute_sdk import Client as GlobusComputeClient
 from globus_compute_sdk import Executor
-from concurrent.futures import (
-    Future,
-    TimeoutError as FuturesTimeoutError,
-)
+from concurrent.futures import Future
 from .cloud_manager import CloudManager
 
 DEFAULT_CONFIG_PATH = "globus_config.json"
@@ -42,8 +39,6 @@ class GlobusComputeCloudManager(CloudManager):
         self.endpoints_details: List[Dict[str, Any]] = []
         self.active_endpoint_ids: List[str] = []
         self._executors: Dict[str, Executor] = {}
-        self._active_tasks: Dict[str, Any] = {}
-        self._next_endpoint_idx = 0
 
         if auto_authenticate:
             try:
@@ -167,56 +162,14 @@ class GlobusComputeCloudManager(CloudManager):
                 f"Executor Globus Compute para o endpoint {worker_id} não foi inicializado."
             )
 
-        internal_task_id = str(uuid.uuid4())
         try:
             future = executor.submit(user_function, data_chunk)
-            self._active_tasks[internal_task_id] = future
             return future
 
         except Exception as e:
             raise RuntimeError(
                 f"Falha ao submeter tarefa ao endpoint Globus Compute {worker_id}: {e}"
             ) from e
-
-    def get_results_for_ids(
-        self, task_ids: List[str], timeout_per_task: Optional[float] = None
-    ) -> List[Any]:
-        """
-        Recupera os resultados para uma lista de IDs de tarefas internas.
-        Bloqueia até que todas as tarefas sejam concluídas, falhem ou atinjam o timeout.
-        """
-        outcomes: List[Any] = []
-        for internal_task_id in task_ids:
-            future = self._active_tasks.get(internal_task_id)
-
-            if future is None:
-                outcomes.append(
-                    KeyError(
-                        f"ID de tarefa interno desconhecido: {internal_task_id} para Globus Compute."
-                    )
-                )
-                continue
-
-            print(f"Estado da tarefa {internal_task_id}: {future._state}")
-            try:
-                print(
-                    f"Recuperando o resultado da tarefa {internal_task_id} (GC UUID: {future.task_id})..."
-                )
-                result = future.result(timeout=timeout_per_task)
-                outcomes.append(result)
-            except FuturesTimeoutError:
-                gc_uuid = future.task_id if hasattr(future, "task_uuid") else "N/A"
-                outcomes.append(
-                    FuturesTimeoutError(
-                        f"Tarefa Globus Compute (ID interno: {internal_task_id}, GC ID: {gc_uuid}) "
-                        f"excedeu o tempo limite de {timeout_per_task}s."
-                    )
-                )
-            except Exception as e:
-                outcomes.append(e)
-
-            del self._active_tasks[internal_task_id]
-        return outcomes
 
     def shutdown_executors(self):
         """Desliga todos os executores Globus Compute ativos."""
@@ -228,7 +181,6 @@ class GlobusComputeCloudManager(CloudManager):
             except Exception as e:
                 print(f"Erro ao desligar o executor para o endpoint {endpoint_id}: {e}")
         self._executors.clear()
-        self._active_tasks.clear()
 
     def shutdown(self):
         """Método de limpeza para o CloudManager."""
