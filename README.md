@@ -1,7 +1,12 @@
 # mwfaas
 
-- Crie um ambiente virtual: `python3 -m venv venv`
-- Instale as dependências: `pip install -r requirements.txt`
+- Crie um ambiente virtual para instalar as dependências:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
 ## Configurando um endpoint
 
