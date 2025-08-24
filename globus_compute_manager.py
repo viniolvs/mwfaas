@@ -10,7 +10,6 @@ from globus_compute_sdk import Executor
 from concurrent.futures import (
     TimeoutError as FuturesTimeoutError,
 )
-
 from .cloud_manager import CloudManager
 
 DEFAULT_CONFIG_PATH = "globus_config.json"
@@ -447,3 +446,50 @@ class GlobusComputeCloudManager(CloudManager):
         else:
             print("Nenhuma configuração de endpoint foi criada.")
             return False
+
+    @staticmethod
+    def list_endpoints() -> List[Dict[str, Any]]:
+        """
+        Busca e retorna uma lista de todos os endpoints disponíveis para
+        o usuário autenticado, incluindo seus status.
+
+        Acionará o fluxo de login interativo se o usuário não estiver autenticado.
+
+        Returns:
+            Uma lista de dicionários, onde cada dicionário contém detalhes
+            de um endpoint ('uuid', 'name', 'status').
+        """
+        try:
+            client = GlobusComputeClient()
+            client.version_check()
+        except Exception as e:
+            print(f"\nERRO: Falha na autenticação com o Globus Compute: {e}")
+            return []
+
+        print("Buscando endpoints registrados...")
+        available_endpoints: List[Dict[str, Any]] = []
+        try:
+            raw_endpoints = client.get_endpoints()
+            if not raw_endpoints:
+                return []
+
+            for ep_info in raw_endpoints:
+                try:
+                    status_info = client.get_endpoint_status(ep_info["uuid"])
+                    details = {
+                        "uuid": ep_info["uuid"],
+                        "name": ep_info.get("name", "Sem Nome"),
+                        "status": status_info.get("status", "desconhecido"),
+                    }
+                    available_endpoints.append(details)
+                except Exception:
+                    details = {
+                        "uuid": ep_info["uuid"],
+                        "name": ep_info.get("name", "Sem Nome"),
+                        "status": "ERRO ao obter status",
+                    }
+                    available_endpoints.append(details)
+            return available_endpoints
+        except Exception as e_list:
+            print(f"ERRO: Não foi possível listar os endpoints: {e_list}")
+            return []
