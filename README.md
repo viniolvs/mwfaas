@@ -30,3 +30,6 @@ python3 -m pipx install globus-compute-endpoint
 globus-compute-endpoint configure endpoint_name
 globus-compute-endpoint start endpoint_name
 ```
+
+- Siga o fluxo de autenticação do globus e autentique o endpoint com o token
+- Os endpoints que serão utilizados devem ser configurados e autenticados na mesma conta do globus
