@@ -1,6 +1,7 @@
 # mwfaas/cloud_manager.py
 
 import abc
+from concurrent.futures import Future  # Importa a classe Future
 from typing import Any, List
 
 
@@ -28,7 +29,7 @@ class CloudManager(abc.ABC):
     @abc.abstractmethod
     def submit_task(
         self, worker_id: str, serialized_function_bytes: bytes, data_chunk: Any
-    ) -> str:
+    ) -> Future:
         """
         Submete uma tarefa (uma função serializada e um bloco de dados) para execução.
 
@@ -37,7 +38,7 @@ class CloudManager(abc.ABC):
             data_chunk: O bloco de dados para esta tarefa.
 
         Returns:
-            Um ID de tarefa único (string).
+            Uma instância de Future que representa a tarefa.
         """
         pass
 
