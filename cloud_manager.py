@@ -1,7 +1,7 @@
 # mwfaas/cloud_manager.py
 
 import abc
-from typing import Any
+from typing import Any, List
 
 
 class CloudManager(abc.ABC):
@@ -19,7 +19,16 @@ class CloudManager(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def submit_task(self, serialized_function_bytes: bytes, data_chunk: Any) -> str:
+    def get_active_worker_ids(self) -> List[str]:
+        """
+        Retorna uma lista de workers/endpoints disponíveis.
+        """
+        pass
+
+    @abc.abstractmethod
+    def submit_task(
+        self, worker_id: str, serialized_function_bytes: bytes, data_chunk: Any
+    ) -> str:
         """
         Submete uma tarefa (uma função serializada e um bloco de dados) para execução.
 
@@ -34,7 +43,7 @@ class CloudManager(abc.ABC):
 
     @abc.abstractmethod
     def get_results_for_ids(
-        self, task_ids: list, timeout_per_task: float | None = None
+        self, task_ids: List, timeout_per_task: float | None = None
     ) -> list:
         """
         Recupera os resultados para uma lista de IDs de tarefas.

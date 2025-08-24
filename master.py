@@ -130,18 +130,28 @@ class Master:
 
         tasks_for_result_collection: List[dict] = []
 
+        next_worker_idx = 0
+        available_workers = self.cloud_manager.get_active_worker_ids()
         for i, chunk in enumerate(data_chunks):
             try:
                 if self._user_function_serialized is None:
                     raise RuntimeError(
                         "Função do usuário não foi serializada corretamente."
                     )
+                selected_worker_id = available_workers[
+                    next_worker_idx % len(available_workers)
+                ]
                 task_id = self.cloud_manager.submit_task(
-                    self._user_function_serialized, chunk
+                    selected_worker_id, self._user_function_serialized, chunk
                 )
                 tasks_for_result_collection.append({"original_index": i, "id": task_id})
                 self._task_metadata.append(
-                    {"id": task_id, "chunk_index": i, "status": "submitted"}
+                    {
+                        "id": task_id,
+                        "worker_id": selected_worker_id,
+                        "chunk_index": i,
+                        "status": "submitted",
+                    }
                 )
             except Exception as e_submit:
                 self._task_metadata.append(

@@ -68,6 +68,9 @@ class GlobusComputeCloudManager(CloudManager):
         if loaded_config:
             self._initialize_from_config(loaded_config)
 
+    def get_active_worker_ids(self) -> List[str]:
+        return self.active_endpoint_ids
+
     def _initialize_from_config(self, endpoints_config: List[Dict[str, Any]]):
         """Inicializa os atributos e executores a partir de uma configuração carregada."""
         self.shutdown_executors()  # Limpa executores antigos
@@ -138,7 +141,9 @@ class GlobusComputeCloudManager(CloudManager):
             return 0
         return len(self.active_endpoint_ids)
 
-    def submit_task(self, serialized_function_bytes: bytes, data_chunk: Any) -> str:
+    def submit_task(
+        self, worker_id: str, serialized_function_bytes: bytes, data_chunk: Any
+    ) -> str:
         """
         Submete uma tarefa a um dos endpoints Globus Compute configurados (usando round-robin).
         A função é desserializada antes da submissão, pois GlobusComputeExecutor espera um callable.
@@ -155,24 +160,20 @@ class GlobusComputeCloudManager(CloudManager):
                 f"Falha ao desserializar a função do usuário para o Globus Compute: {e}"
             ) from e
 
-        selected_endpoint_id = self.active_endpoint_ids[
-            self._next_endpoint_idx % len(self.active_endpoint_ids)
-        ]
-        self._next_endpoint_idx += 1
+        executor = self._executors[worker_id]
+        if executor is None:
+            raise RuntimeError(
+                f"Executor Globus Compute para o endpoint {worker_id} não foi inicializado."
+            )
 
-        executor = self._executors[selected_endpoint_id]
         internal_task_id = str(uuid.uuid4())
-        print(
-            f"Submetendo tarefa {internal_task_id} ao endpoint Globus Compute {selected_endpoint_id}"
-        )
-
         try:
             future = executor.submit(user_function, data_chunk)
             self._active_tasks[internal_task_id] = future
             return internal_task_id
         except Exception as e:
             raise RuntimeError(
-                f"Falha ao submeter tarefa ao endpoint Globus Compute {selected_endpoint_id}: {e}"
+                f"Falha ao submeter tarefa ao endpoint Globus Compute {worker_id}: {e}"
             ) from e
 
     def get_results_for_ids(
