@@ -1,11 +1,10 @@
 # mwfaas/master.py
 
-from concurrent.futures import Future, as_completed
+from concurrent.futures import FIRST_COMPLETED, Future, wait
 from typing import Callable, List, Union, Any, Optional, Dict
 from .cloud_manager import CloudManager
 from .distribution_strategy import DistributionStrategy
 import cloudpickle
-import traceback
 
 
 class Master:
@@ -74,74 +73,85 @@ class Master:
         self, data_input: Any, user_function: Callable[[Any], Any]
     ) -> List[Union[Any, Exception]]:
         self._task_metadata = []
-
-        if not callable(user_function):
-            raise TypeError("user_function deve ser um objeto chamável (Callable).")
-
         serialized_function = self._serialize_function(user_function)
-
-        available_workers = self.cloud_manager.get_active_worker_ids()
-        num_workers = len(available_workers)
-
-        if num_workers == 0:
+        all_workers = self.cloud_manager.get_active_worker_ids()
+        if not all_workers:
             raise RuntimeError(
                 "Nenhum worker ativo encontrado para executar as tarefas."
             )
+        num_workers = len(all_workers)
 
-        data_chunks = self.distribution_strategy.split_data(data_input, num_workers)
+        data_chunks = self.distribution_strategy.split_data(
+            data_input, len(all_workers)
+        )
         if not data_chunks:
             return []
 
         chunk_iterator = iter(data_chunks)
         total_tasks = len(data_chunks)
+        next_task_index = 0
 
         results: List[Optional[Union[Any, Exception]]] = [None] * total_tasks
-        futures_to_index: Dict[Future, int] = {}
-        next_task_index = 0
+        futures_to_info: Dict[Future, Dict[str, Any]] = {}
         print(
-            f"Iniciando com um pool de {num_workers} worker(s) para {total_tasks} tarefa(s)..."
+            f"Iniciando com um pool de {len(all_workers)} worker(s) para {total_tasks} tarefa(s)..."
         )
+
+        # Cria e envia as tarefas aos workers disponíveis
         for i in range(min(num_workers, total_tasks)):
             chunk = next(chunk_iterator)
-            worker_id = available_workers[i]
+            worker_id = all_workers[i % num_workers]
 
             future = self.cloud_manager.submit_task(
                 worker_id, serialized_function, chunk
             )
-            futures_to_index[future] = next_task_index
+            futures_to_info[future] = {"index": next_task_index, "worker_id": worker_id}
             next_task_index += 1
 
-        # Processa e agenda dinamicamente
         processed_tasks = 0
-        for future in as_completed(futures_to_index):
-            original_index = futures_to_index[future]
 
-            try:
-                result = future.result()
-                results[original_index] = result
-            except Exception as e:
-                traceback.print_exc()
-                results[original_index] = e
+        while futures_to_info:
+            # wait() bloqueia até que PELO MENOS UMA das tarefas termine
+            done_futures, _ = wait(futures_to_info.keys(), return_when=FIRST_COMPLETED)
 
-            processed_tasks += 1
-            print(f"Progresso: {processed_tasks}/{total_tasks} tarefas concluídas.")
+            for future in done_futures:
+                task_info = futures_to_info[future]
+                original_index = task_info["index"]
+                worker_id_that_finished = task_info["worker_id"]
 
-            # Agenda a próxima tarefa no worker que ficou livre
-            try:
-                next_chunk = next(chunk_iterator)
-                worker_id = available_workers[next_task_index % num_workers]
-
-                print(f"Agendando chunk {next_task_index} no worker {worker_id}...")
-                new_future = self.cloud_manager.submit_task(
-                    worker_id, serialized_function, next_chunk
+                print(
+                    f"Worker {worker_id_that_finished} completou a tarefa do chunk {original_index}."
                 )
-                futures_to_index[new_future] = next_task_index
-                next_task_index += 1
 
-            except StopIteration:
-                pass
+                try:
+                    result = future.result()
+                    results[original_index] = result
+                except Exception as e:
+                    results[original_index] = e
 
-        # A verificação final para 'None' ainda é uma boa prática
+                processed_tasks += 1
+                print(f"Progresso: {processed_tasks}/{total_tasks} tarefas concluídas.")
+
+                del futures_to_info[future]
+
+                #  Agenda a próxima tarefa da fila
+                next_chunk_to_submit = next(chunk_iterator, None)
+                if next_chunk_to_submit is not None:
+                    print(
+                        f"Re-agendando: Chunk {next_task_index} para o worker {worker_id_that_finished}"
+                    )
+
+                    new_future = self.cloud_manager.submit_task(
+                        worker_id_that_finished,
+                        serialized_function,
+                        next_chunk_to_submit,
+                    )
+                    futures_to_info[new_future] = {
+                        "index": next_task_index,
+                        "worker_id": worker_id_that_finished,
+                    }
+                    next_task_index += 1
+
         final_results: List[Union[Any, Exception]] = []
         for item in results:
             if item is None:
@@ -152,7 +162,6 @@ class Master:
                 )
             else:
                 final_results.append(item)
-
         return final_results
 
     def reduce(
