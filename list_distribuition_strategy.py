@@ -1,56 +1,52 @@
-from typing import List
-from .distribution_strategy import DistributionStrategy
+from typing import List, Any
+from .distribution_strategy import (
+    DistributionStrategy,
+)
 
 
 class ListDistributionStrategy(DistributionStrategy):
     """
-    Uma estratégia padrão que divide os dados da forma mais equilibrada possível
-    entre o número alvo de divisões. Assume que `data_input` é uma lista.
+    Uma estratégia que divide uma lista de itens em blocos (chunks)
+    de um tamanho configurável.
     """
 
-    def split_data(self, data_input: List, num_target_splits: int) -> List:
+    def __init__(self, items_per_chunk: int = 1):
         """
-        Divide uma lista de itens de dados em `num_target_splits` blocos da forma
-        mais equilibrada possível.
+        Inicializa a estratégia de distribuição.
+
+        Args:
+            items_per_chunk (int, optional): O número de itens da lista de entrada
+                                             que devem ser agrupados em cada chunk.
+                                             O padrão é 1, o que cria uma tarefa
+                                             para cada item (máximo paralelismo).
+        """
+        if not isinstance(items_per_chunk, int) or items_per_chunk <= 0:
+            raise ValueError("items_per_chunk deve ser um inteiro positivo.")
+        self.items_per_chunk = items_per_chunk
+
+    def split_data(
+        self, data_input: List[Any], num_target_splits: int
+    ) -> List[List[Any]]:
+        """
+        Divide a lista de entrada em blocos com `items_per_chunk` em cada um.
+
+        Nota: O parâmetro `num_target_splits` é ignorado por esta estratégia,
+        pois a divisão é baseada no tamanho do chunk, não no número de workers.
 
         Args:
             data_input: A lista de itens de dados.
-            num_target_splits: O número desejado de blocos. Deve ser um inteiro positivo.
-                               Este valor é tipicamente fornecido pelo `Master` após consulta
-                               ao `CloudManager.get_worker_count()`.
+            num_target_splits: Ignorado por esta implementação.
 
         Returns:
-            Uma lista de listas (blocos). Retorna uma lista vazia se `data_input` for vazio.
-            Se `num_target_splits` for maior que o número de itens, cada item se torna
-            seu próprio bloco, e os "splits" restantes (endpoints) receberão blocos vazios.
-
-        Raises:
-            ValueError: Se `num_target_splits` não for um inteiro positivo.
-                        (O `Master` deve garantir que um valor válido seja passado).
+            Uma lista de listas (blocos).
         """
-        if not isinstance(num_target_splits, int) or num_target_splits <= 0:
-            raise ValueError("num_target_splits deve ser um inteiro positivo.")
-
         if not data_input:
             return []
 
-        n = len(data_input)
+        # A lógica agora é muito mais simples: fatiar a lista em pedaços de tamanho fixo.
         chunks = []
-
-        # Lógica para distribuir N itens em K splits:
-        # base_size = N // K
-        # remainder = N % K
-        # Os primeiros 'remainder' splits recebem 'base_size + 1' itens.
-        # Os 'K - remainder' splits restantes recebem 'base_size' itens.
-
-        base_size = n // num_target_splits
-        remainder = n % num_target_splits
-        current_pos = 0
-
-        for i in range(num_target_splits):
-            chunk_size = base_size + (1 if i < remainder else 0)
-            chunk = data_input[current_pos : current_pos + chunk_size]
+        for i in range(0, len(data_input), self.items_per_chunk):
+            chunk = data_input[i : i + self.items_per_chunk]
             chunks.append(chunk)
-            current_pos += chunk_size
 
         return chunks
