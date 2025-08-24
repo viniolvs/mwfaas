@@ -8,6 +8,7 @@ from typing import Any, Optional, List, Dict
 from globus_compute_sdk import Client as GlobusComputeClient
 from globus_compute_sdk import Executor
 from concurrent.futures import (
+    Future,
     TimeoutError as FuturesTimeoutError,
 )
 from .cloud_manager import CloudManager
@@ -143,7 +144,7 @@ class GlobusComputeCloudManager(CloudManager):
 
     def submit_task(
         self, worker_id: str, serialized_function_bytes: bytes, data_chunk: Any
-    ) -> str:
+    ) -> Future:
         """
         Submete uma tarefa a um dos endpoints Globus Compute configurados (usando round-robin).
         A função é desserializada antes da submissão, pois GlobusComputeExecutor espera um callable.
@@ -170,7 +171,8 @@ class GlobusComputeCloudManager(CloudManager):
         try:
             future = executor.submit(user_function, data_chunk)
             self._active_tasks[internal_task_id] = future
-            return internal_task_id
+            return future
+
         except Exception as e:
             raise RuntimeError(
                 f"Falha ao submeter tarefa ao endpoint Globus Compute {worker_id}: {e}"
