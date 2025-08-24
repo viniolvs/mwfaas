@@ -69,7 +69,6 @@ def display_endpoints_table(endpoints: List[Dict[str, Any]], configured_ids: Set
     print("-" * line_size)
 
 
-# --- MODIFICADO: Função principal para orquestrar a lógica ---
 def main():
     """Ponto de entrada principal para o script de listagem de endpoints."""
     try:
