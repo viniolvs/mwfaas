@@ -155,7 +155,6 @@ class GlobusComputeCloudManager(CloudManager):
                 f"Falha ao desserializar a função do usuário para o Globus Compute: {e}"
             ) from e
 
-        # Seleção Round-robin do endpoint
         selected_endpoint_id = self.active_endpoint_ids[
             self._next_endpoint_idx % len(self.active_endpoint_ids)
         ]
@@ -163,6 +162,9 @@ class GlobusComputeCloudManager(CloudManager):
 
         executor = self._executors[selected_endpoint_id]
         internal_task_id = str(uuid.uuid4())
+        print(
+            f"Submetendo tarefa {internal_task_id} ao endpoint Globus Compute {selected_endpoint_id}"
+        )
 
         try:
             future = executor.submit(user_function, data_chunk)
