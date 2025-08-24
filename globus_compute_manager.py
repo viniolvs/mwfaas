@@ -1,7 +1,6 @@
 # mwfaas/globus_compute_manager.py
 
 import json
-import uuid
 import cloudpickle
 from typing import Any, Optional, List, Dict
 
