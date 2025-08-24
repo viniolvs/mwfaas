@@ -20,7 +20,7 @@ class CloudManager(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_active_worker_ids(self) -> List[str]:
+    def get_available_worker_ids(self) -> List[str]:
         """
         Retorna uma lista de workers/endpoints disponíveis.
         """

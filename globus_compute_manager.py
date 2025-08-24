@@ -36,7 +36,7 @@ class GlobusComputeCloudManager(CloudManager):
         self._client = GlobusComputeClient()
 
         self.endpoints_details: List[Dict[str, Any]] = []
-        self.active_endpoint_ids: List[str] = []
+        self.available_endpoint_ids: List[str] = []
         self._executors: Dict[str, Executor] = {}
 
         if auto_authenticate:
@@ -63,8 +63,8 @@ class GlobusComputeCloudManager(CloudManager):
         if loaded_config:
             self._initialize_from_config(loaded_config)
 
-    def get_active_worker_ids(self) -> List[str]:
-        return self.active_endpoint_ids
+    def get_available_worker_ids(self) -> List[str]:
+        return self.available_endpoint_ids
 
     def _initialize_from_config(self, endpoints_config: List[Dict[str, Any]]):
         """Inicializa os atributos e executores a partir de uma configuração carregada."""
@@ -79,7 +79,7 @@ class GlobusComputeCloudManager(CloudManager):
         self._initialize_executors(endpoint_ids_to_init)
 
     def _initialize_executors(self, endpoint_ids_to_init: List[str]):
-        self.active_endpoint_ids = []
+        self.available_endpoint_ids = []
         self._executors = {}
         for ep_id in endpoint_ids_to_init:
             try:
@@ -92,13 +92,13 @@ class GlobusComputeCloudManager(CloudManager):
                 self._executors[ep_id] = Executor(
                     endpoint_id=ep_id, client=self._client
                 )
-                self.active_endpoint_ids.append(ep_id)
+                self.available_endpoint_ids.append(ep_id)
             except Exception as e:
                 print(
                     f"Aviso: Falha ao criar executor para o endpoint {ep_id}: {e}. Este endpoint não será utilizado."
                 )
 
-        if not self.active_endpoint_ids:
+        if not self.available_endpoint_ids:
             print(
                 "Aviso: Nenhum executor Globus Compute utilizável pôde ser inicializado."
             )
@@ -132,9 +132,9 @@ class GlobusComputeCloudManager(CloudManager):
         Retorna o número de endpoints Globus Compute ativos e utilizáveis.
         Pode ser ajustado para refletir o total de workers, se essa informação estiver disponível.
         """
-        if not self.active_endpoint_ids or not self._executors:
+        if not self.available_endpoint_ids or not self._executors:
             return 0
-        return len(self.active_endpoint_ids)
+        return len(self.available_endpoint_ids)
 
     def submit_task(
         self, worker_id: str, serialized_function_bytes: bytes, data_chunk: Any
@@ -143,7 +143,7 @@ class GlobusComputeCloudManager(CloudManager):
         Submete uma tarefa a um dos endpoints Globus Compute configurados (usando round-robin).
         A função é desserializada antes da submissão, pois GlobusComputeExecutor espera um callable.
         """
-        if not self._executors or not self.active_endpoint_ids:
+        if not self._executors or not self.available_endpoint_ids:
             raise RuntimeError(
                 "Nenhum executor Globus Compute está disponível/configurado para submissão de tarefas."
             )
@@ -398,7 +398,7 @@ class GlobusComputeCloudManager(CloudManager):
             )
             self.save_config_to_file(selected_endpoints_config, path_to_save)
             self._initialize_from_config(selected_endpoints_config)
-            return True if self.active_endpoint_ids else False
+            return True if self.available_endpoint_ids else False
         else:
             print("Nenhuma configuração de endpoint foi criada.")
             return False

@@ -74,7 +74,7 @@ class Master:
     ) -> List[Union[Any, Exception]]:
         self._task_metadata = []
         serialized_function = self._serialize_function(user_function)
-        all_workers = self.cloud_manager.get_active_worker_ids()
+        all_workers = self.cloud_manager.get_available_worker_ids()
         if not all_workers:
             raise RuntimeError(
                 "Nenhum worker ativo encontrado para executar as tarefas."
