@@ -380,7 +380,7 @@ class GlobusComputeCloudManager(CloudManager):
             raise
 
     def configure_endpoints_interactive_and_save(
-        self, save_to_path: Optional[str] = None
+        self, path: Optional[str] = None
     ) -> bool:
         """
         Executa o processo interativo de seleção e configuração de endpoints,
@@ -393,9 +393,7 @@ class GlobusComputeCloudManager(CloudManager):
         )
 
         if selected_endpoints_config:
-            path_to_save = (
-                save_to_path if save_to_path is not None else self._config_file_path
-            )
+            path_to_save = path if path is not None else self._config_file_path
             self.save_config_to_file(selected_endpoints_config, path_to_save)
             self._initialize_from_config(selected_endpoints_config)
             return True if self.available_endpoint_ids else False
