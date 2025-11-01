@@ -35,9 +35,7 @@ class Master:
 
         self._task_metadata: List[dict] = []
 
-    def _wrap_user_function(
-        self, user_function: Callable
-    ) -> Callable[[List[Any]], Any]:
+    def _wrap_user_function(self, user_function: Callable) -> Callable:
         """
         Cria e retorna uma nova função que 'embrulha' a função do usuário
         com uma lógica de tratamento de erro para o TypeError.
@@ -49,10 +47,12 @@ class Master:
             dentro de um bloco try/except.
         """
 
-        def wrapped_function(chunk: List[Any]) -> Any:
+        def wrapped_function(
+            chunk: List[Any], metadata: Optional[Dict[str, Any]] = None
+        ) -> Any:
             """Esta é a função que será de fato serializada e enviada ao worker."""
             try:
-                return user_function(chunk)
+                return user_function(chunk, metadata)
             except TypeError as e:
                 helpful_error_msg = (
                     "A função do usuário falhou com um TypeError. "
@@ -64,13 +64,16 @@ class Master:
 
         return wrapped_function
 
-    def _serialize_function(self, user_function: Callable[[Any], Any]) -> bytes:
+    def _serialize_function(self, user_function: Callable) -> bytes:
         """Cria a função wrapper e a serializa usando cloudpickle."""
         wrapped_function = self._wrap_user_function(user_function)
         return cloudpickle.dumps(wrapped_function)
 
     def run(
-        self, data_input: Any, user_function: Callable[[Any], Any]
+        self,
+        data_input: Any,
+        user_function: Callable,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> List[Union[Any, Exception]]:
         self._task_metadata = []
         serialized_function = self._serialize_function(user_function)
@@ -103,7 +106,7 @@ class Master:
             worker_id = all_workers[i % num_workers]
 
             future = self.cloud_manager.submit_task(
-                worker_id, serialized_function, chunk
+                worker_id, serialized_function, chunk, metadata
             )
             futures_to_info[future] = {"index": next_task_index, "worker_id": worker_id}
             next_task_index += 1
