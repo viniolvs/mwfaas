@@ -148,6 +148,7 @@ class Master:
                         worker_id_that_finished,
                         serialized_function,
                         next_chunk_to_submit,
+                        metadata,
                     )
                     futures_to_info[new_future] = {
                         "index": next_task_index,
