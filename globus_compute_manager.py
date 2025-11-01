@@ -137,7 +137,11 @@ class GlobusComputeCloudManager(CloudManager):
         return len(self.available_endpoint_ids)
 
     def submit_task(
-        self, worker_id: str, serialized_function_bytes: bytes, data_chunk: Any
+        self,
+        worker_id: str,
+        serialized_function_bytes: bytes,
+        data_chunk: Any,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> Future:
         """
         Submete uma tarefa a um dos endpoints Globus Compute configurados (usando round-robin).
@@ -162,7 +166,7 @@ class GlobusComputeCloudManager(CloudManager):
             )
 
         try:
-            future = executor.submit(user_function, data_chunk)
+            future = executor.submit(user_function, data_chunk, metadata)
             return future
 
         except Exception as e:
