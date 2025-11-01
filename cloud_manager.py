@@ -2,7 +2,7 @@
 
 import abc
 from concurrent.futures import Future  # Importa a classe Future
-from typing import Any, List
+from typing import Any, List, Optional
 
 
 class CloudManager(abc.ABC):
@@ -28,7 +28,11 @@ class CloudManager(abc.ABC):
 
     @abc.abstractmethod
     def submit_task(
-        self, worker_id: str, serialized_function_bytes: bytes, data_chunk: Any
+        self,
+        worker_id: str,
+        serialized_function_bytes: bytes,
+        data_chunk: Any,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> Future:
         """
         Submete uma tarefa (uma função serializada e um bloco de dados) para execução.
