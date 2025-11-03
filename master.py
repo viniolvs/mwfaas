@@ -109,9 +109,17 @@ class Master:
                 worker_id, serialized_function, chunk, metadata
             )
             futures_to_info[future] = {"index": next_task_index, "worker_id": worker_id}
+            self._task_metadata.append(
+                {
+                    "index": next_task_index,
+                    "worker_id": worker_id,
+                }
+            )
             next_task_index += 1
 
+        print("Iniciando a execução das tarefas...")
         processed_tasks = 0
+        print(f"Progresso: {processed_tasks}/{total_tasks} tarefas concluídas.")
 
         while futures_to_info:
             # wait() bloqueia até que PELO MENOS UMA das tarefas termine
@@ -154,6 +162,12 @@ class Master:
                         "index": next_task_index,
                         "worker_id": worker_id_that_finished,
                     }
+                    self._task_metadata.append(
+                        {
+                            "index": next_task_index,
+                            "worker_id": worker_id_that_finished,
+                        }
+                    )
                     next_task_index += 1
 
         final_results: List[Union[Any, Exception]] = []
