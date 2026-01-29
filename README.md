@@ -4,26 +4,26 @@ MWFaaS (Master-Worker Framework for FaaS) é um framework em Python que simplifi
 
 ## Features
 
-*   **Arquitetura Mestre-Escravo:** Orquestra a execução de tarefas em múltiplos workers.
-*   **Abstração de Nuvem:** A classe `CloudManager` permite a integração com diferentes provedores FaaS.
-*   **Estratégias de Distribuição de Dados:** A classe `DistributionStrategy` permite a implementação de diferentes estratégias de divisão de dados.
-*   **Serialização de Funções:** Utiliza `cloudpickle` para serializar e desserializar funções e seus dados, permitindo a execução remota.
-*   **Interface de Linha de Comando (CLI):** Fornece ferramentas para autenticação e gerenciamento de endpoints.
+- **Arquitetura Mestre-Escravo:** Orquestra a execução de tarefas em múltiplos workers.
+- **Abstração de Nuvem:** A classe `CloudManager` permite a integração com diferentes provedores FaaS.
+- **Estratégias de Distribuição de Dados:** A classe `DistributionStrategy` permite a implementação de diferentes estratégias de divisão de dados.
+- **Serialização de Funções:** Utiliza `cloudpickle` para serializar e desserializar funções e seus dados, permitindo a execução remota.
+- **Interface de Linha de Comando (CLI):** Fornece ferramentas para autenticação e gerenciamento de endpoints.
 
 ## Arquitetura
 
 O MWFaaS é composto por três componentes principais:
 
 1.  **Master:** O ponto de entrada do framework. O `Master` é responsável por:
-    *   Aceitar os dados de entrada e a função a ser executada.
-    *   Utilizar uma `DistributionStrategy` para dividir os dados em pedaços (chunks).
-    *   Utilizar um `CloudManager` para submeter os chunks de dados como tarefas para os workers.
-    *   Coletar e agregar os resultados dos workers.
+    - Aceitar os dados de entrada e a função a ser executada.
+    - Utilizar uma `DistributionStrategy` para dividir os dados em pedaços (chunks).
+    - Utilizar um `CloudManager` para submeter os chunks de dados como tarefas para os workers.
+    - Coletar e agregar os resultados dos workers.
 
 2.  **CloudManager:** Uma classe abstrata que define a interface para interagir com um provedor FaaS. As implementações concretas do `CloudManager` são responsáveis por:
-    *   Gerenciar a autenticação com o provedor de nuvem.
-    *   Listar os workers (endpoints) disponíveis.
-    *   Submeter tarefas para os workers.
+    - Gerenciar a autenticação com o provedor de nuvem.
+    - Listar os workers (endpoints) disponíveis.
+    - Submeter tarefas para os workers.
 
 3.  **DistributionStrategy:** Uma classe abstrata que define a interface para dividir os dados de entrada em chunks. As implementações concretas da `DistributionStrategy` permitem diferentes estratégias de paralelização.
 
@@ -31,14 +31,15 @@ O MWFaaS é composto por três componentes principais:
 
 ### Pré-requisitos
 
-*   Python 3.8 ou superior
-*   As dependências listadas no arquivo `requirements.txt`
+- Python 3.8 ou superior
+- As dependências listadas no arquivo `requirements.txt`
 
 ### Instalação
 
 1.  Clone o repositório:
+
     ```bash
-    git clone https://github.com/seu-usuario/mwfaas.git
+    git clone https://github.com/viniolvs/mwfaas.git
     cd mwfaas
     ```
 
@@ -52,9 +53,11 @@ O MWFaaS é composto por três componentes principais:
 O MWFaaS inclui uma implementação de `CloudManager` para o Globus Compute. Para utilizá-lo, você precisa configurar seus endpoints do Globus Compute.
 
 1.  **Login no Globus:**
+
     ```bash
     python3 -m mwfaas.cli.auth_globus login
     ```
+
     Este comando irá abrir uma página de autenticação no seu navegador.
 
 2.  **Configure os Endpoints:**
@@ -99,23 +102,26 @@ print(f"Resultado final: {final_result}")
 
 O MWFaaS fornece uma CLI para gerenciar a autenticação e os endpoints do Globus Compute.
 
-*   **Login:**
-    ```bash
-    python3 -m mwfaas.cli.auth_globus login
-    ```
+- **Login:**
 
-*   **Logout:**
-    ```bash
-    python3 -m mwfaas.cli.auth_globus logout
-    ```
+  ```bash
+  python3 -m mwfaas.cli.auth_globus login
+  ```
 
-*   **Configurar Endpoints:**
-    ```bash
-    python3 -m mwfaas.cli.configure_globus_endpoints
-    ```
+- **Logout:**
 
-*   **Listar Endpoints:**
-    ```bash
-    python3 -m mwfaas.cli.list_globus_endpoints
-    ```
-    Este comando lista os endpoints do Globus Compute disponíveis e seu status. A coluna "CONFIGURADO" indica se o endpoint foi selecionado durante a etapa de configuração e está pronto para ser usado pelo MWFaaS.
+  ```bash
+  python3 -m mwfaas.cli.auth_globus logout
+  ```
+
+- **Configurar Endpoints:**
+
+  ```bash
+  python3 -m mwfaas.cli.configure_globus_endpoints
+  ```
+
+- **Listar Endpoints:**
+  ```bash
+  python3 -m mwfaas.cli.list_globus_endpoints
+  ```
+  Este comando lista os endpoints do Globus Compute disponíveis e seu status. A coluna "CONFIGURADO" indica se o endpoint foi selecionado durante a etapa de configuração e está pronto para ser usado pelo MWFaaS.
