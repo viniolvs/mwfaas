@@ -2,7 +2,7 @@ from typing import List, Any
 from .distribution_strategy import DistributionStrategy
 
 
-class SingleDistribuitionStrategy(DistributionStrategy):
+class SingleDistributionStrategy(DistributionStrategy):
     """
     Uma estratégia que não divide os dados. Em vez disso, trata
     todo o data_input como um único bloco de trabalho.
